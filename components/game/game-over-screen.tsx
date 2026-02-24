@@ -1,0 +1,455 @@
+"use client";
+
+import { useGameStore } from "@/lib/game-store";
+import { companies } from "@/lib/game-data";
+import { motion, AnimatePresence } from "framer-motion";
+import { RotateCcw, Share2, Trophy, Zap, MapPin, Crown, Star, Award, Target } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import Image from "next/image";
+
+const badgeConfig = {
+  diamond: { icon: Crown, color: "#B9F2FF", glow: "rgba(185,242,255,0.3)", label: "DIAMANTE" },
+  platinum: { icon: Star, color: "#E5E4E2", glow: "rgba(229,228,226,0.3)", label: "PLATINO" },
+  gold: { icon: Trophy, color: "#FFD700", glow: "rgba(255,215,0,0.3)", label: "ORO" },
+  silver: { icon: Award, color: "#C0C0C0", glow: "rgba(192,192,192,0.25)", label: "PLATA" },
+  bronze: { icon: Target, color: "#CD7F32", glow: "rgba(205,127,50,0.2)", label: "BRONCE" },
+};
+
+function CountUp({ target, duration = 1.5 }: { target: number; duration?: number }) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const step = () => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / (duration * 1000), 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setVal(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return <>{val.toLocaleString()}</>;
+}
+
+function PercentileBar({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] tracking-[0.15em] uppercase" style={{ color: "rgba(255,255,255,0.4)" }}>
+          Indice de Dominio
+        </span>
+        <motion.span
+          className="font-bebas text-lg"
+          style={{ color }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+        >
+          {value}%
+        </motion.span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+        <motion.div
+          className="h-full rounded-full"
+          style={{
+            background: `linear-gradient(90deg, ${color}60, ${color})`,
+            boxShadow: `0 0 12px ${color}40`,
+          }}
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 1.5, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function GameOverScreen() {
+  const {
+    selectedVehicle,
+    currentScore,
+    highScore,
+    distance,
+    coinsCollected,
+    gamesPlayed,
+    driverProfile,
+    dominanceIndex,
+    setScreen,
+    resetGame,
+    user,
+    selectedCompany,
+  } = useGameStore();
+
+  const activeCompany = companies.find((c) => c.id === selectedCompany);
+  const isNewRecord = currentScore >= highScore && currentScore > 0;
+  const accentColor = selectedVehicle?.accentColor || "#FF7800";
+  const badge = driverProfile?.badge || "bronze";
+  const config = badgeConfig[badge];
+  const BadgeIcon = config.icon;
+
+  const handlePlayAgain = () => {
+    resetGame();
+    setScreen("select");
+  };
+
+  const handleGetInfo = () => {
+    setScreen("form");
+  };
+
+  const handleShare = async () => {
+    const userName = user?.name.split(" ")[0] || "Un conductor";
+    const text = `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${activeCompany?.name || "Grupo Meucci"} Drive Experience`,
+          text,
+          url: window.location.href,
+        });
+      } catch {
+        /* cancelled */
+      }
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen flex flex-col relative overflow-hidden"
+      style={{
+        background: "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
+      }}
+    >
+      {/* Background effects */}
+      <motion.div
+        className="absolute top-[15%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full"
+        style={{
+          background: `radial-gradient(circle, ${accentColor}12 0%, transparent 60%)`,
+        }}
+        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Confetti for new record */}
+      {isNewRecord && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(35)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-sm"
+              style={{
+                width: 3 + (i % 4) * 2,
+                height: 3 + (i % 4) * 2,
+                backgroundColor: [config.color, accentColor, "#FFD700", "#fff", "#E63946"][i % 5],
+                left: `${(i * 2.85) % 100}%`,
+                top: -10,
+              }}
+              animate={{
+                y: [0, typeof window !== "undefined" ? window.innerHeight + 50 : 850],
+                rotate: [0, 360 * (i % 2 === 0 ? 1 : -1)],
+                opacity: [1, 0],
+              }}
+              transition={{ duration: 2.5 + (i % 3) * 0.5, delay: (i % 8) * 0.08, ease: "easeOut" }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-5 relative z-10 pt-8 pb-4">
+        {/* Scuderia branding + user */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-3 flex items-center gap-3"
+        >
+          {user && (
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.5)",
+              }}
+            >
+              {user.avatar}
+            </div>
+          )}
+          <Image
+            src={activeCompany?.logo || "/images/grupo-meucci-logo.png"}
+            alt={activeCompany?.name || "Grupo Meucci"}
+            width={120}
+            height={28}
+            className="brightness-0 invert"
+            style={{ width: "auto", height: "auto", maxHeight: "16px", opacity: 0.35 }}
+          />
+        </motion.div>
+
+        {/* New record badge */}
+        {isNewRecord && (
+          <motion.div
+            initial={{ scale: 0, rotate: -10 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 300, delay: 0.2 }}
+            className="mb-3 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider"
+            style={{
+              background: `linear-gradient(135deg, ${config.color}30, ${config.color}10)`,
+              border: `1px solid ${config.color}40`,
+              color: config.color,
+            }}
+          >
+            NUEVO RECORD!
+          </motion.div>
+        )}
+
+        {/* Badge & rank */}
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col items-center mb-2"
+        >
+          {/* Badge circle */}
+          <motion.div
+            className="relative w-20 h-20 rounded-full flex items-center justify-center mb-3"
+            style={{
+              background: `linear-gradient(135deg, ${config.color}15, ${config.color}05)`,
+              border: `2px solid ${config.color}35`,
+              boxShadow: `0 0 40px ${config.glow}`,
+            }}
+            animate={{
+              boxShadow: [
+                `0 0 20px ${config.glow}`,
+                `0 0 50px ${config.glow}`,
+                `0 0 20px ${config.glow}`,
+              ],
+            }}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
+            <BadgeIcon className="w-9 h-9" style={{ color: config.color }} />
+          </motion.div>
+
+          <motion.h2
+            className="font-bebas text-2xl tracking-[0.2em] text-center"
+            style={{ color: config.color }}
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            {driverProfile?.title || "PRINCIPIANTE"}
+          </motion.h2>
+          <motion.p
+            className="text-[10px] tracking-[0.2em] uppercase"
+            style={{ color: "rgba(255,255,255,0.35)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            {driverProfile?.subtitle}
+          </motion.p>
+        </motion.div>
+
+        {/* Score */}
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-center mb-4"
+        >
+          <h1
+            className="text-6xl font-bebas tracking-wider leading-none"
+            style={{ color: "#ece6e1" }}
+          >
+            <CountUp target={currentScore} />
+          </h1>
+          <p className="text-[10px] tracking-[0.3em] uppercase mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+            Puntos totales
+          </p>
+        </motion.div>
+
+        {/* Percentile callout */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="px-5 py-2 rounded-full mb-5"
+          style={{
+            background: `linear-gradient(135deg, ${accentColor}12, transparent)`,
+            border: `1px solid ${accentColor}20`,
+          }}
+        >
+          <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+            {"Estas en el "}
+            <span className="font-bold" style={{ color: accentColor }}>
+              top {100 - (driverProfile?.percentile || 85)}%
+            </span>
+            {" de los conductores"}
+          </p>
+        </motion.div>
+
+        {/* Dominance index bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="w-full max-w-xs mb-5"
+        >
+          <PercentileBar value={dominanceIndex} color={accentColor} />
+        </motion.div>
+
+        {/* Stats row */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="w-full max-w-xs grid grid-cols-3 gap-2 mb-5"
+        >
+          <div
+            className="flex flex-col items-center p-3 rounded-xl"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <MapPin className="w-3.5 h-3.5 mb-1" style={{ color: "rgba(255,255,255,0.35)" }} />
+            <span className="font-bebas text-base text-foreground">{distance.toLocaleString()}m</span>
+            <span className="text-[8px] tracking-wider uppercase" style={{ color: "rgba(255,255,255,0.25)" }}>
+              Distancia
+            </span>
+          </div>
+          <div
+            className="flex flex-col items-center p-3 rounded-xl"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <div className="w-3.5 h-3.5 rounded-full bg-yellow-400/80 mb-1" />
+            <span className="font-bebas text-base text-yellow-400">{coinsCollected}</span>
+            <span className="text-[8px] tracking-wider uppercase" style={{ color: "rgba(255,255,255,0.25)" }}>
+              Monedas
+            </span>
+          </div>
+          <div
+            className="flex flex-col items-center p-3 rounded-xl"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <Zap className="w-3.5 h-3.5 mb-1" style={{ color: accentColor }} />
+            <span className="font-bebas text-base" style={{ color: accentColor }}>
+              {selectedVehicle?.name}
+            </span>
+            <span className="text-[8px] tracking-wider uppercase" style={{ color: "rgba(255,255,255,0.25)" }}>
+              Vehiculo
+            </span>
+          </div>
+        </motion.div>
+
+        {/* Vehicle image + CTA text */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="flex items-center gap-3 mb-2"
+        >
+          <div className="relative w-16 h-10">
+            <Image
+              src={selectedVehicle?.image || "/placeholder.svg"}
+              alt={selectedVehicle?.name || "Vehicle"}
+              fill
+              className="object-contain"
+            />
+          </div>
+          <p className="text-xs max-w-[200px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+            {gamesPlayed >= 3
+              ? `${gamesPlayed} partidas jugadas. Llevalo al mundo real.`
+              : `El ${selectedVehicle?.name} es tu match. Descubrilo en persona.`}
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Action buttons */}
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 1.1 }}
+        className="px-5 pb-7 pt-2 space-y-2.5 relative z-10"
+      >
+        {/* Primary CTA - lead capture */}
+        <button
+          onClick={handleGetInfo}
+          className="w-full py-3.5 rounded-xl font-bebas text-base tracking-[0.15em] text-foreground transition-all hover:scale-[1.02] active:scale-[0.98] touch-manipulation relative overflow-hidden"
+          style={{
+            background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`,
+            boxShadow: `0 0 30px ${accentColor}30`,
+          }}
+        >
+          <motion.div
+            className="absolute inset-0 bg-white/15"
+            initial={{ x: "-100%" }}
+            animate={{ x: "200%" }}
+            transition={{ repeat: Infinity, duration: 3, ease: "linear", repeatDelay: 2 }}
+            style={{ skewX: "-20deg", width: "30%" }}
+          />
+          <span className="relative z-10">DESBLOQUEA TU PROPUESTA PERSONALIZADA</span>
+        </button>
+
+        {/* Leaderboard CTA */}
+        <button
+          onClick={() => setScreen("leaderboard")}
+          className="w-full py-3 rounded-xl font-bebas text-sm tracking-[0.12em] flex items-center justify-center gap-2 transition-all active:scale-[0.97] touch-manipulation"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.03))",
+            border: "1px solid rgba(255,215,0,0.15)",
+            color: "rgba(255,215,0,0.8)",
+          }}
+        >
+          <Trophy className="w-4 h-4" />
+          VER RANKING EN VIVO
+          <motion.div
+            className="w-1.5 h-1.5 rounded-full ml-1"
+            style={{ backgroundColor: "rgba(74,222,128,0.7)" }}
+            animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+        </button>
+
+        {/* Secondary actions */}
+        <div className="flex gap-2.5">
+          <button
+            onClick={handleShare}
+            className="flex-1 py-3 rounded-xl font-bebas text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.97] touch-manipulation"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.7)",
+            }}
+          >
+            <Share2 className="w-4 h-4" />
+            COMPARTIR
+          </button>
+
+          <button
+            onClick={handlePlayAgain}
+            className="flex-1 py-3 rounded-xl font-bebas text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.97] touch-manipulation"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.7)",
+            }}
+          >
+            <RotateCcw className="w-4 h-4" />
+            JUGAR DE NUEVO
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-1.5 mt-4">
+          <span className="text-[8px] tracking-[0.3em] uppercase font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+            Una empresa del
+          </span>
+          <Image
+            src="/images/grupo-meucci-logo.png"
+            alt="Grupo Meucci"
+            width={140}
+            height={46}
+            className="brightness-0 invert drop-shadow-[0_0_10px_rgba(255,255,255,0.18)]"
+            style={{ width: "auto", height: "24px", opacity: 0.8 }}
+          />
+        </div>
+      </motion.div>
+    </div>
+  );
+}
