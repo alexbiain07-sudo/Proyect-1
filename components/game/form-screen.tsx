@@ -52,6 +52,8 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          googleId: user?.id || "",
+          avatar: user?.avatar || "",
           vehiculoInteres: selectedVehicle?.name || "",
           vehiculoId: selectedVehicle?.id || "",
           puntajeJuego: currentScore,

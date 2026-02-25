@@ -23,6 +23,20 @@ export const metadata: Metadata = {
     title: 'Drive Experience | Grupo Meucci',
     description: 'Descubri tu vehiculo ideal con Grupo Meucci. Elegi entre Scuderia, Dallas y Alliance.',
     type: 'website',
+    images: [
+      {
+        url: '/api/og?name=Grupo+Meucci&score=0&title=DRIVE+EXPERIENCE&badge=gold&vehicle=',
+        width: 1200,
+        height: 630,
+        alt: 'Drive Experience - Grupo Meucci',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Drive Experience | Grupo Meucci',
+    description: 'Descubri tu vehiculo ideal con Grupo Meucci.',
+    images: ['/api/og?name=Grupo+Meucci&score=0&title=DRIVE+EXPERIENCE&badge=gold&vehicle='],
   },
 }
 

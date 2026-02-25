@@ -2,8 +2,9 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies } from "@/lib/game-data";
+import { shareToInstagram, shareToFacebook } from "@/lib/share-utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Trophy, Zap, MapPin, Crown, Star, Award, Target, Copy, Check } from "lucide-react";
+import { RotateCcw, Trophy, Zap, MapPin, Crown, Star, Award, Target, Copy, Check, Share2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
@@ -88,6 +89,29 @@ export function GameOverScreen() {
   const config = badgeConfig[badge];
   const BadgeIcon = config.icon;
 
+  // Post the score to the API when this screen mounts
+  useEffect(() => {
+    if (currentScore > 0 && selectedVehicle && selectedCompany) {
+      fetch("/api/scores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id || "",
+          userName: user?.name || "Anonimo",
+          userAvatar: user?.avatar || "",
+          score: currentScore,
+          distance,
+          coins: coinsCollected,
+          vehicleId: selectedVehicle.id,
+          vehicleName: selectedVehicle.name,
+          vehicleBrand: selectedVehicle.brand,
+          companyId: selectedCompany,
+        }),
+      }).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handlePlayAgain = () => {
     resetGame();
     setScreen("select");
@@ -97,47 +121,44 @@ export function GameOverScreen() {
     setScreen("form");
   };
 
-  const [copied, setCopied] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "generating" | "shared" | "copied">("idle");
+
+  const shareData = useMemo(() => ({
+    userName: user?.name.split(" ")[0] || "Conductor",
+    score: currentScore,
+    title: driverProfile?.title || "PILOTO",
+    subtitle: driverProfile?.subtitle || "",
+    badge: driverProfile?.badge || "bronze",
+    vehicleName: selectedVehicle?.name || "",
+    vehicleBrand: selectedVehicle?.brand || "",
+    percentile: driverProfile?.percentile || 15,
+    accentColor: selectedVehicle?.accentColor || "#FF7800",
+  }), [user, currentScore, driverProfile, selectedVehicle]);
 
   const getShareText = useCallback(() => {
     const userName = user?.name.split(" ")[0] || "Un conductor";
-    return `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?`;
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    return `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?\n\n${url}`;
   }, [user, driverProfile, currentScore, selectedVehicle]);
 
   const handleShareFacebook = useCallback(() => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const text = getShareText();
-    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
-    window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=400");
-  }, [getShareText]);
+    shareToFacebook({
+      name: shareData.userName,
+      score: shareData.score,
+      title: shareData.title,
+      badge: shareData.badge,
+      vehicle: `${shareData.vehicleBrand} ${shareData.vehicleName}`,
+    });
+  }, [shareData]);
 
   const handleShareInstagram = useCallback(async () => {
-    const text = getShareText();
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const fullText = `${text}\n\n${url}`;
-    try {
-      await navigator.clipboard.writeText(fullText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-      // Try Instagram deep link on mobile after a short delay
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        setTimeout(() => {
-          window.location.href = "instagram://story-camera";
-        }, 400);
-      }
-    } catch {
-      // Fallback: select text for manual copy
-      const textArea = document.createElement("textarea");
-      textArea.value = fullText;
-      textArea.style.position = "fixed";
-      textArea.style.opacity = "0";
-      document.body.appendChild(textArea);
-      textArea.select();
-      try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 3000); } catch { /* noop */ }
-      document.body.removeChild(textArea);
+    setShareState("generating");
+    const result = await shareToInstagram(shareData, getShareText());
+    setShareState(result === "shared" ? "shared" : result === "copied" ? "copied" : "idle");
+    if (result !== "idle") {
+      setTimeout(() => setShareState("idle"), 3000);
     }
-  }, [getShareText]);
+  }, [shareData, getShareText]);
 
   return (
     <div
@@ -190,16 +211,27 @@ export function GameOverScreen() {
           className="mb-3 flex items-center gap-3"
         >
           {user && (
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                color: "rgba(255,255,255,0.5)",
-              }}
-            >
-              {user.avatar}
-            </div>
+            user.avatar && user.avatar.startsWith("http") ? (
+              <Image
+                src={user.avatar}
+                alt={user.name}
+                width={24}
+                height={24}
+                className="rounded-full object-cover"
+                style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+              />
+            ) : (
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.5)",
+                }}
+              >
+                {user.avatar || user.name.charAt(0)}
+              </div>
+            )
           )}
           {activeCompany ? (
             <CompanyLogo companyId={activeCompany.id} size="sm" style={{ opacity: 0.35, color: "rgba(255,255,255,0.5)" }} />
@@ -441,10 +473,20 @@ export function GameOverScreen() {
               color: "rgba(225,48,108,0.9)",
             }}
           >
-            {copied ? (
+            {shareState === "generating" ? (
+              <>
+                <Share2 className="w-3.5 h-3.5 animate-pulse" />
+                GENERANDO...
+              </>
+            ) : shareState === "shared" ? (
               <>
                 <Check className="w-3.5 h-3.5" />
-                TEXTO COPIADO
+                COMPARTIDO
+              </>
+            ) : shareState === "copied" ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                COPIADO
               </>
             ) : (
               <>
