@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 /**
- * GET /api/auth/google/callback
+ * GET /api/auth/google/ callback
  * Handles the OAuth2 callback from Google.
  * Exchanges the code for tokens, fetches user info,
  * and redirects back to the app with user data in a cookie.
