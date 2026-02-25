@@ -43,7 +43,7 @@ export function GrupoMeucciLogo({ className, style, size = "md" }: LogoProps) {
       width={w}
       height={h}
       className={`brightness-0 invert select-none drop-shadow-[0_0_10px_rgba(255,255,255,0.12)] ${className || ""}`}
-      style={{ width: "auto", height: "auto", maxHeight: `${h}px`, ...style }}
+      style={{ maxHeight: `${h}px`, ...style, width: "auto", height: "auto" }}
     />
   );
 }
@@ -58,7 +58,7 @@ export function MeucciNavLogo({ className, style, size = "md" }: LogoProps) {
       width={w}
       height={h}
       className={`brightness-0 invert select-none ${className || ""}`}
-      style={{ width: "auto", height: "auto", maxHeight: `${h}px`, ...style }}
+      style={{ maxHeight: `${h}px`, ...style, width: "auto", height: "auto" }}
     />
   );
 }
@@ -94,7 +94,7 @@ export function CompanyLogo({
       width={w}
       height={h}
       className={`select-none ${isWhiteLogo ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" : "brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"} ${className || ""}`}
-      style={{ width: "auto", height: "auto", maxHeight: `${h}px`, ...style }}
+      style={{ maxHeight: `${h}px`, ...style, width: "auto", height: "auto" }}
     />
   );
 }
