@@ -2,9 +2,8 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies, getVehiclesByCompany, type CompanyId } from "@/lib/game-data";
-import { sessionToAuthUser, type AuthUser } from "@/lib/mock-auth";
-import { signInWithGoogle, getAuthStatus } from "@/lib/auth-actions";
-import { useSession } from "next-auth/react";
+import { type AuthUser } from "@/lib/mock-auth";
+import { getAuthStatus } from "@/lib/auth-actions";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Trophy, Crown, Star, Award, Target, ChevronRight } from "lucide-react";
@@ -77,15 +76,6 @@ type AuthState = "idle" | "signing-in" | "saving" | "sending-email" | "welcome-t
 
 export function WelcomeScreen() {
   const { setScreen, setUser, selectCompany, isAuthenticated } = useGameStore();
-  let sessionData: { data: { user?: Record<string, unknown> } | null; status: string } = { data: null, status: "unauthenticated" };
-  try {
-    // useSession may throw if SessionProvider is not wrapping (auth not configured)
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    sessionData = useSession();
-  } catch {
-    // Auth not configured — continue with fallback flow
-  }
-  const { data: session, status } = sessionData;
   const [phase, setPhase] = useState<"intro" | "companies" | "ready">("intro");
   const [authState, setAuthState] = useState<AuthState>("idle");
   const [userName, setUserName] = useState("");
@@ -114,31 +104,46 @@ export function WelcomeScreen() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // When the user returns from Google OAuth with a valid session, auto-complete the flow
+  // On mount: check for Google OAuth callback cookie (set by /api/auth/google/callback)
   useEffect(() => {
-    if (authMode !== "google") return;
-    if (status === "authenticated" && session?.user && !isAuthenticated && selectedCo) {
-      const authUser = sessionToAuthUser(session.user as { id?: string; name?: string | null; email?: string | null; image?: string | null });
-      setUserName(authUser.name.split(" ")[0]);
-      setUserEmail(authUser.email);
-      setUser(authUser);
-      selectCompany(selectedCo);
+    if (isAuthenticated) return;
+    try {
+      const cookies = document.cookie.split(";").map((c) => c.trim());
+      const userCookie = cookies.find((c) => c.startsWith("meucci_user="));
+      if (userCookie) {
+        const jsonStr = decodeURIComponent(userCookie.split("=").slice(1).join("="));
+        const userData = JSON.parse(jsonStr) as AuthUser;
+        if (userData.id && userData.name) {
+          const storedCo = sessionStorage.getItem("meucci_selected_company") as CompanyId | null;
+          if (storedCo) {
+            setSelectedCo(storedCo);
+            selectCompany(storedCo);
+          }
+          setUserName(userData.name.split(" ")[0]);
+          setUserEmail(userData.email);
+          setUser(userData);
 
-      fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nombre: authUser.name,
-          email: authUser.email,
-          googleId: authUser.id,
-          avatar: authUser.avatar,
-        }),
-      }).catch(() => {});
+          // Save to leads API
+          fetch("/api/leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              nombre: userData.name,
+              email: userData.email,
+              googleId: userData.id,
+              avatar: userData.avatar,
+            }),
+          }).catch(() => {});
 
-      setAuthState("welcome-toast");
-      setTimeout(() => setScreen("select"), 2200);
+          setAuthState("welcome-toast");
+          setTimeout(() => setScreen("select"), 2200);
+        }
+      }
+    } catch {
+      // Cookie parsing failed — continue normally
     }
-  }, [authMode, status, session, isAuthenticated, selectedCo, setUser, selectCompany, setScreen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Persist selectedCo to sessionStorage so it survives the OAuth redirect
   useEffect(() => {
@@ -205,8 +210,8 @@ export function WelcomeScreen() {
 
   /**
    * Handles the sign-in action.
-   * - If Google OAuth is configured: triggers redirect to Google
-   * - If not: creates a local user with a generated name and proceeds
+   * - If Google OAuth is configured: redirects to /api/auth/google
+   * - If not: creates a local guest user and proceeds immediately
    */
   const handleGoogleSignIn = useCallback(async () => {
     if (authState !== "idle" || !selectedCo) return;
@@ -214,14 +219,9 @@ export function WelcomeScreen() {
     setAuthState("signing-in");
 
     if (authMode === "google") {
-      const result = await signInWithGoogle();
-      // If signInWithGoogle returns fallback, switch to local mode
-      if (result && typeof result === "object" && "fallback" in result) {
-        setAuthMode("local");
-      } else {
-        // Google redirect will happen — page reloads
-        return;
-      }
+      // Redirect to our simple OAuth route — the page will reload after
+      window.location.href = "/api/auth/google";
+      return;
     }
 
     // Local fallback flow: create a guest user
