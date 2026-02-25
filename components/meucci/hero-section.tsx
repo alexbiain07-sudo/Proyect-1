@@ -15,13 +15,13 @@ export function HeroSection() {
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-5 md:px-12"
       >
         <div className="flex items-center gap-3">
-          <MeucciNavLogo size="sm" style={{ height: "22px" }} />
+          <MeucciNavLogo size="sm" style={{ maxHeight: "22px" }} />
           <span
             className="hidden md:block h-4 w-px"
             style={{ background: "rgba(255,255,255,0.15)" }}
           />
           <span className="hidden md:block">
-            <GrupoMeucciLogo size="sm" style={{ opacity: 0.55, height: "14px" }} />
+            <GrupoMeucciLogo size="sm" style={{ opacity: 0.55, maxHeight: "14px" }} />
           </span>
         </div>
         <div className="hidden md:flex items-center gap-8">
@@ -80,7 +80,7 @@ export function HeroSection() {
           transition={{ delay: 0.3, duration: 1.2, ease: "easeOut" }}
           className="mb-8"
         >
-          <MeucciNavLogo size="lg" style={{ height: "auto", maxHeight: "80px" }} className="md:!h-[110px] mx-auto" />
+          <MeucciNavLogo size="lg" style={{ maxHeight: "80px" }} className="md:!max-h-[110px] mx-auto" />
         </motion.div>
 
         <motion.div
