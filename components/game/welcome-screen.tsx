@@ -2,7 +2,9 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies, getVehiclesByCompany, type CompanyId } from "@/lib/game-data";
-import { mockGoogleSignIn, mockSaveUserToDb, mockSendWelcomeEmail } from "@/lib/mock-auth";
+import { sessionToAuthUser } from "@/lib/mock-auth";
+import { signInWithGoogle } from "@/lib/auth-actions";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { Trophy, Crown, Star, Award, Target, ChevronRight } from "lucide-react";
@@ -100,7 +102,8 @@ function GoogleIcon({ className }: { className?: string }) {
 type AuthState = "idle" | "signing-in" | "saving" | "sending-email" | "welcome-toast";
 
 export function WelcomeScreen() {
-  const { setScreen, setUser, selectCompany } = useGameStore();
+  const { setScreen, setUser, selectCompany, isAuthenticated } = useGameStore();
+  const { data: session, status } = useSession();
   const [phase, setPhase] = useState<"intro" | "companies" | "ready">("intro");
   const [authState, setAuthState] = useState<AuthState>("idle");
   const [userName, setUserName] = useState("");
@@ -115,6 +118,47 @@ export function WelcomeScreen() {
     const t2 = setTimeout(() => setPhase("ready"), 2600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
+
+  // When the user returns from Google OAuth with a valid session, auto-complete the flow
+  useEffect(() => {
+    if (status === "authenticated" && session?.user && !isAuthenticated && selectedCo) {
+      const authUser = sessionToAuthUser(session.user);
+      setUserName(authUser.name.split(" ")[0]);
+      setUserEmail(authUser.email);
+      setUser(authUser);
+      selectCompany(selectedCo);
+
+      // Post the lead data to our API
+      fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: authUser.name,
+          email: authUser.email,
+          googleId: authUser.id,
+          avatar: authUser.avatar,
+        }),
+      }).catch(() => {});
+
+      setAuthState("welcome-toast");
+      setTimeout(() => setScreen("select"), 2200);
+    }
+  }, [status, session, isAuthenticated, selectedCo, setUser, selectCompany, setScreen]);
+
+  // Persist selectedCo to sessionStorage so it survives the OAuth redirect
+  useEffect(() => {
+    if (selectedCo) {
+      sessionStorage.setItem("meucci_selected_company", selectedCo);
+    }
+  }, [selectedCo]);
+
+  // Restore selectedCo after OAuth redirect
+  useEffect(() => {
+    const stored = sessionStorage.getItem("meucci_selected_company");
+    if (stored && !selectedCo) {
+      setSelectedCo(stored as CompanyId);
+    }
+  }, [selectedCo]);
 
   // Live leaderboard updates
   useEffect(() => {
@@ -146,19 +190,11 @@ export function WelcomeScreen() {
     if (authState !== "idle" || !selectedCo) return;
     selectCompany(selectedCo);
     setAuthState("signing-in");
-    const user = await mockGoogleSignIn();
-    setUserName(user.name.split(" ")[0]);
-    setUserEmail(user.email);
-    setAuthState("saving");
-    await mockSaveUserToDb(user);
-    setAuthState("sending-email");
-    await mockSendWelcomeEmail(user);
-    setUser(user);
-    setAuthState("welcome-toast");
-    setTimeout(() => setScreen("select"), 2200);
-  }, [authState, selectedCo, selectCompany, setUser, setScreen]);
+    // This triggers a redirect to Google OAuth — the page will reload after
+    await signInWithGoogle();
+  }, [authState, selectedCo, selectCompany]);
 
-  const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email";
+  const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email" || status === "loading";
   const activeCompany = companies.find((c) => c.id === selectedCo);
   const previewVehicles = selectedCo ? getVehiclesByCompany(selectedCo) : [];
 
