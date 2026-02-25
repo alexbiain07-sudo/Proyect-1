@@ -46,9 +46,21 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
     e.preventDefault();
     if (!validateForm()) return;
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    // TODO: Replace with API route POST to /api/leads when AWS backend is connected
-    // Payload: { ...formData, vehiculoInteres: selectedVehicle?.name, vehiculoId: selectedVehicle?.id, puntajeJuego: currentScore, nivelConductor: driverProfile?.title }
+    try {
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          vehiculoInteres: selectedVehicle?.name || "",
+          vehiculoId: selectedVehicle?.id || "",
+          puntajeJuego: currentScore,
+          nivelConductor: driverProfile?.title || "",
+        }),
+      });
+    } catch {
+      // Silently handle - form still transitions to success
+    }
     submitForm();
     setIsSubmitting(false);
   };

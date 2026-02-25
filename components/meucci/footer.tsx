@@ -3,7 +3,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Instagram, Facebook, MessageCircle } from "lucide-react";
-import { GrupoMeucciLogo } from "@/components/ui/brand-logo";
+import { GrupoMeucciLogo, MeucciNavLogo } from "@/components/ui/brand-logo";
 
 export function Footer() {
   const ref = useRef(null);
@@ -85,9 +85,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           {/* Logo col */}
           <div className="md:col-span-1">
-            <span className="font-bebas text-lg tracking-[0.2em] uppercase mb-4 block" style={{ color: "rgba(255,255,255,0.85)" }}>
-              MEUCCI
-            </span>
+            <div className="mb-4">
+              <MeucciNavLogo size="sm" style={{ height: "24px" }} />
+            </div>
             <p
               className="text-[12px] leading-relaxed"
               style={{ color: "rgba(200, 195, 190, 0.3)" }}

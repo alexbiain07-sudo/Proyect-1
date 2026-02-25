@@ -131,7 +131,7 @@ export const companies: Company[] = [
   {
     id: "scuderia",
     name: "Scuderia",
-    logo: "", // TODO: Add logo image when available
+    logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/scuderia-header-blanco-IaxsIT81ePuQX08H02H6KcvaaDEEpH.png",
     brands: ["FIAT"],
     tagline: "Concesionario oficial FIAT",
     accentColor: "#AA2222",
@@ -139,7 +139,7 @@ export const companies: Company[] = [
   {
     id: "dallas",
     name: "Dallas",
-    logo: "", // TODO: Add logo image when available
+    logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/dallas%20logo-CUrLjkdr2qpfg6oadbonCb6toOGeF7.png",
     brands: ["JEEP", "RAM"],
     tagline: "Concesionario oficial JEEP & RAM",
     accentColor: "#1B6B3A",
@@ -147,7 +147,7 @@ export const companies: Company[] = [
   {
     id: "alliance",
     name: "Alliance",
-    logo: "", // TODO: Add logo image when available
+    logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Alliance-citroen-negro-jMhGcXwZzT34ZBm7irnDw2N11DGXtu.png",
     brands: ["CITROEN"],
     tagline: "Concesionario oficial CITROEN",
     accentColor: "#1A3C8A",

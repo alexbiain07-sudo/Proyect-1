@@ -118,15 +118,24 @@ export function GameOverScreen() {
     try {
       await navigator.clipboard.writeText(fullText);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-      // Try Instagram Stories deep link on mobile
+      setTimeout(() => setCopied(false), 3000);
+      // Try Instagram deep link on mobile after a short delay
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile) {
-        window.open("instagram://story-camera", "_blank");
+        setTimeout(() => {
+          window.location.href = "instagram://story-camera";
+        }, 400);
       }
     } catch {
-      // Fallback if clipboard fails
-      setCopied(false);
+      // Fallback: select text for manual copy
+      const textArea = document.createElement("textarea");
+      textArea.value = fullText;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 3000); } catch { /* noop */ }
+      document.body.removeChild(textArea);
     }
   }, [getShareText]);
 
@@ -435,7 +444,7 @@ export function GameOverScreen() {
             {copied ? (
               <>
                 <Check className="w-3.5 h-3.5" />
-                COPIADO
+                TEXTO COPIADO
               </>
             ) : (
               <>
