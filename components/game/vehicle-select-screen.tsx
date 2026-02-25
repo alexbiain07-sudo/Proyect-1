@@ -7,6 +7,7 @@ import { useGameStore } from "@/lib/game-store";
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import { Gauge, Zap, Rocket, Check, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import { CompanyLogo } from "@/components/ui/brand-logo";
 
 function StatBar({
   label,
@@ -203,13 +204,10 @@ export function VehicleSelectScreen() {
               </span>
             )}
           </div>
-          <Image
-            src={activeCompany?.logo || "/images/scuderia-header-blanco.png"}
-            alt={activeCompany?.name || "Scuderia"}
-            width={130}
-            height={30}
-            className="brightness-0 invert"
-            style={{ width: "auto", height: "auto", maxHeight: "14px", opacity: 0.4 }}
+          <CompanyLogo
+            companyId={activeCompany?.id || "scuderia"}
+            size="sm"
+            style={{ opacity: 0.4, color: "rgba(255,255,255,0.5)" }}
           />
         </div>
         <span className="text-[9px] font-medium tracking-[0.4em] uppercase text-muted-foreground">

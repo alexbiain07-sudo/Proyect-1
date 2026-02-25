@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { ChevronDown } from "lucide-react";
+import { GrupoMeucciLogo, MeucciNavLogo } from "@/components/ui/brand-logo";
 
 export function HeroSection() {
   return (
@@ -15,26 +15,14 @@ export function HeroSection() {
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-5 md:px-12"
       >
         <div className="flex items-center gap-3">
-          <Image
-            src="/images/meucci-logo.jpg"
-            alt="Meucci Automotores"
-            width={140}
-            height={40}
-            style={{ width: "auto", height: "28px" }}
-            className="brightness-0 invert"
-          />
+          <MeucciNavLogo size="sm" style={{ height: "22px" }} />
           <span
             className="hidden md:block h-4 w-px"
             style={{ background: "rgba(255,255,255,0.15)" }}
           />
-          <Image
-            src="/images/grupo-meucci-logo.png"
-            alt="Grupo Meucci"
-            width={100}
-            height={34}
-            style={{ width: "auto", height: "20px", opacity: 0.55 }}
-            className="hidden md:block brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
-          />
+          <span className="hidden md:block">
+            <GrupoMeucciLogo size="sm" style={{ opacity: 0.55, height: "14px" }} />
+          </span>
         </div>
         <div className="hidden md:flex items-center gap-8">
           {["Vehiculos", "Ranking", "Nosotros", "Grupo Meucci", "Contacto"].map(
@@ -92,15 +80,7 @@ export function HeroSection() {
           transition={{ delay: 0.3, duration: 1.2, ease: "easeOut" }}
           className="mb-8"
         >
-          <Image
-            src="/images/meucci-logo.jpg"
-            alt="Meucci Automotores"
-            width={500}
-            height={140}
-            style={{ width: "auto", height: "auto" }}
-            className="brightness-0 invert mx-auto max-h-[80px] md:max-h-[110px]"
-            priority
-          />
+          <MeucciNavLogo size="lg" style={{ height: "auto", maxHeight: "80px" }} className="md:!h-[110px] mx-auto" />
         </motion.div>
 
         <motion.div
@@ -156,14 +136,7 @@ export function HeroSection() {
           >
             Una empresa del
           </span>
-          <Image
-            src="/images/grupo-meucci-logo.png"
-            alt="Grupo Meucci"
-            width={120}
-            height={40}
-            style={{ width: "auto", height: "18px", opacity: 0.7 }}
-            className="brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.12)]"
-          />
+          <GrupoMeucciLogo size="sm" style={{ opacity: 0.7 }} />
         </motion.div>
 
         <motion.div

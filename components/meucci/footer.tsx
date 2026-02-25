@@ -2,8 +2,8 @@
 
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import Image from "next/image";
 import { Instagram, Facebook, MessageCircle } from "lucide-react";
+import { GrupoMeucciLogo, MeucciNavLogo } from "@/components/ui/brand-logo";
 
 export function Footer() {
   const ref = useRef(null);
@@ -41,14 +41,9 @@ export function Footer() {
           >
             Empresa del
           </span>
-          <Image
-            src="/images/grupo-meucci-logo.png"
-            alt="Grupo Meucci"
-            width={400}
-            height={130}
-            className="relative z-10 mx-auto mb-8 brightness-0 invert"
-            style={{ width: "auto", height: "80px", opacity: 0.9 }}
-          />
+          <div className="relative z-10 mx-auto mb-8">
+            <GrupoMeucciLogo size="lg" style={{ opacity: 0.9 }} />
+          </div>
           <div
             className="w-16 h-px mx-auto mb-5"
             style={{ background: "rgba(200, 170, 140, 0.2)" }}
@@ -90,14 +85,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           {/* Logo col */}
           <div className="md:col-span-1">
-            <Image
-              src="/images/meucci-logo.jpg"
-              alt="Meucci Automotores"
-              width={120}
-              height={36}
-              style={{ width: "auto", height: "24px" }}
-              className="brightness-0 invert mb-4"
-            />
+            <div className="mb-4">
+              <MeucciNavLogo size="sm" style={{ height: "24px" }} />
+            </div>
             <p
               className="text-[12px] leading-relaxed"
               style={{ color: "rgba(200, 195, 190, 0.3)" }}

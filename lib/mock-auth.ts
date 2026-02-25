@@ -53,7 +53,7 @@ export async function mockSaveUserToDb(user: AuthUser): Promise<boolean> {
   return new Promise((resolve) => {
     setTimeout(() => {
       // Simulate DB insert
-      console.log(`[DB] User saved: ${user.email}`);
+      // TODO: Replace with actual DB insert via API route
       resolve(true);
     }, 300);
   });
@@ -66,7 +66,7 @@ export async function mockSaveUserToDb(user: AuthUser): Promise<boolean> {
 export async function mockSendWelcomeEmail(user: AuthUser): Promise<boolean> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      console.log(`[Email] Welcome email sent to: ${user.email}`);
+      // TODO: Replace with Resend/SES API call
       resolve(true);
     }, 500);
   });
