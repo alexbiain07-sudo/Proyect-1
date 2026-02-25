@@ -1,73 +1,37 @@
 /**
- * Mock authentication module.
- * TODO: Replace with Supabase Auth (Google OAuth) when integration is connected.
- * TODO: Replace sendWelcomeEmail with Resend API call when integration is connected.
+ * Auth types module.
+ * AuthUser is the canonical user type used across the game store and all screens.
+ * Authentication is now handled by Auth.js v5 (next-auth) with Google OAuth.
  */
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  avatar: string;
-}
-
-const MOCK_USERS: AuthUser[] = [
-  {
-    id: "usr_001",
-    name: "Carlos Martinez",
-    email: "carlos.martinez@gmail.com",
-    avatar: "CM",
-  },
-  {
-    id: "usr_002",
-    name: "Valentina Lopez",
-    email: "valentina.lopez@gmail.com",
-    avatar: "VL",
-  },
-  {
-    id: "usr_003",
-    name: "Santiago Ruiz",
-    email: "santiago.ruiz@gmail.com",
-    avatar: "SR",
-  },
-];
-
-/**
- * Simulates Google OAuth sign-in with a 1.5s delay.
- * TODO: Replace with Supabase signInWithOAuth({ provider: 'google' })
- */
-export async function mockGoogleSignIn(): Promise<AuthUser> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const user = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
-      resolve(user);
-    }, 1500);
-  });
+  avatar: string; // URL to Google profile picture, or initials fallback
 }
 
 /**
- * Simulates saving the user email to the database.
- * TODO: Replace with Supabase insert into 'users' table
+ * Convert a next-auth Session.user to our AuthUser format.
  */
-export async function mockSaveUserToDb(user: AuthUser): Promise<boolean> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Simulate DB insert
-      // TODO: Replace with actual DB insert via API route
-      resolve(true);
-    }, 300);
-  });
-}
+export function sessionToAuthUser(sessionUser: {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}): AuthUser {
+  const name = sessionUser.name || "Usuario";
+  const initials = name
+    .split(" ")
+    .map((n) => n.charAt(0))
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
-/**
- * Simulates sending a welcome email.
- * TODO: Replace with Resend API call using a branded HTML template
- */
-export async function mockSendWelcomeEmail(user: AuthUser): Promise<boolean> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // TODO: Replace with Resend/SES API call
-      resolve(true);
-    }, 500);
-  });
+  return {
+    id: sessionUser.id || "",
+    name,
+    email: sessionUser.email || "",
+    avatar: sessionUser.image || initials,
+  };
 }

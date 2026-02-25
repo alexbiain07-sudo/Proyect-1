@@ -2,7 +2,9 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies, getVehiclesByCompany, type CompanyId } from "@/lib/game-data";
-import { mockGoogleSignIn, mockSaveUserToDb, mockSendWelcomeEmail } from "@/lib/mock-auth";
+import { sessionToAuthUser } from "@/lib/mock-auth";
+import { signInWithGoogle } from "@/lib/auth-actions";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { Trophy, Crown, Star, Award, Target, ChevronRight } from "lucide-react";
@@ -10,16 +12,12 @@ import Image from "next/image";
 import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
 
 /* ---- Mini Leaderboard Data ---- */
-const MOCK_NAMES = [
-  "Lucas M.", "Valentina R.", "Martin G.", "Sofia L.", "Tomas B.",
-  "Camila A.", "Nicolas F.", "Florencia P.", "Santiago D.", "Catalina V.",
-];
-
 interface MiniEntry {
   id: string;
   name: string;
   score: number;
   badge: "diamond" | "platinum" | "gold" | "silver" | "bronze";
+  avatar?: string;
 }
 
 const badgeConfig: Record<string, { icon: typeof Crown; color: string }> = {
@@ -29,28 +27,6 @@ const badgeConfig: Record<string, { icon: typeof Crown; color: string }> = {
   silver: { icon: Award, color: "#C0C0C0" },
   bronze: { icon: Target, color: "#CD7F32" },
 };
-
-function generateInitialEntries(): MiniEntry[] {
-  const entries: MiniEntry[] = [];
-  const ranges = [
-    { min: 11000, max: 14500, badge: "diamond" as const },
-    { min: 8500, max: 11000, badge: "platinum" as const },
-    { min: 5500, max: 8500, badge: "gold" as const },
-    { min: 3000, max: 5500, badge: "silver" as const },
-    { min: 800, max: 3000, badge: "bronze" as const },
-  ];
-  for (let i = 0; i < 5; i++) {
-    const range = ranges[i];
-    entries.push({
-      id: `w-${i}`,
-      name: MOCK_NAMES[i],
-      score: Math.floor(range.min + Math.random() * (range.max - range.min)),
-      badge: range.badge,
-    });
-  }
-  entries.sort((a, b) => b.score - a.score);
-  return entries;
-}
 
 function FloatingParticle({ index }: { index: number }) {
   const startX = 10 + ((index * 23.7) % 80);
@@ -100,14 +76,15 @@ function GoogleIcon({ className }: { className?: string }) {
 type AuthState = "idle" | "signing-in" | "saving" | "sending-email" | "welcome-toast";
 
 export function WelcomeScreen() {
-  const { setScreen, setUser, selectCompany } = useGameStore();
+  const { setScreen, setUser, selectCompany, isAuthenticated } = useGameStore();
+  const { data: session, status } = useSession();
   const [phase, setPhase] = useState<"intro" | "companies" | "ready">("intro");
   const [authState, setAuthState] = useState<AuthState>("idle");
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [hoveredCompany, setHoveredCompany] = useState<CompanyId | null>(null);
   const [selectedCo, setSelectedCo] = useState<CompanyId | null>(null);
-  const [miniLeaderboard, setMiniLeaderboard] = useState<MiniEntry[]>(() => generateInitialEntries());
+  const [miniLeaderboard, setMiniLeaderboard] = useState<MiniEntry[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -116,15 +93,53 @@ export function WelcomeScreen() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // Live leaderboard updates
+  // When the user returns from Google OAuth with a valid session, auto-complete the flow
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMiniLeaderboard((prev) => {
-        const updated = [...prev];
-        const idx = Math.floor(Math.random() * updated.length);
-        const entry = updated[idx];
-        const delta = Math.floor(Math.random() * 600) + 150;
-        const newScore = entry.score + delta;
+    if (status === "authenticated" && session?.user && !isAuthenticated && selectedCo) {
+      const authUser = sessionToAuthUser(session.user);
+      setUserName(authUser.name.split(" ")[0]);
+      setUserEmail(authUser.email);
+      setUser(authUser);
+      selectCompany(selectedCo);
+
+      // Post the lead data to our API
+      fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: authUser.name,
+          email: authUser.email,
+          googleId: authUser.id,
+          avatar: authUser.avatar,
+        }),
+      }).catch(() => {});
+
+      setAuthState("welcome-toast");
+      setTimeout(() => setScreen("select"), 2200);
+    }
+  }, [status, session, isAuthenticated, selectedCo, setUser, selectCompany, setScreen]);
+
+  // Persist selectedCo to sessionStorage so it survives the OAuth redirect
+  useEffect(() => {
+    if (selectedCo) {
+      sessionStorage.setItem("meucci_selected_company", selectedCo);
+    }
+  }, [selectedCo]);
+
+  // Restore selectedCo after OAuth redirect
+  useEffect(() => {
+    const stored = sessionStorage.getItem("meucci_selected_company");
+    if (stored && !selectedCo) {
+      setSelectedCo(stored as CompanyId);
+    }
+  }, [selectedCo]);
+
+  // Fetch real leaderboard from API and poll for updates
+  const fetchMiniLeaderboard = useCallback(async () => {
+    try {
+      const res = await fetch("/api/scores?limit=5");
+      const data = await res.json();
+      if (data.scores && Array.isArray(data.scores) && data.scores.length > 0) {
         const getBadge = (s: number) => {
           if (s >= 12000) return "diamond" as const;
           if (s >= 8000) return "platinum" as const;
@@ -132,33 +147,50 @@ export function WelcomeScreen() {
           if (s >= 2500) return "silver" as const;
           return "bronze" as const;
         };
-        updated[idx] = { ...entry, score: newScore, badge: getBadge(newScore) };
-        updated.sort((a, b) => b.score - a.score);
-        setHighlightId(entry.id);
-        setTimeout(() => setHighlightId(null), 1200);
-        return updated;
-      });
-    }, 3500 + Math.random() * 2500);
-    return () => clearInterval(interval);
+        const entries: MiniEntry[] = data.scores.map((s: { id: string; userName: string; score: number; userAvatar?: string }) => ({
+          id: s.id,
+          name: s.userName,
+          score: s.score,
+          badge: getBadge(s.score),
+          avatar: s.userAvatar || "",
+        }));
+        entries.sort((a, b) => b.score - a.score);
+
+        // Check if any entry changed score to animate
+        setMiniLeaderboard((prev) => {
+          if (prev.length > 0) {
+            for (const entry of entries) {
+              const old = prev.find((p) => p.id === entry.id);
+              if (old && old.score !== entry.score) {
+                setHighlightId(entry.id);
+                setTimeout(() => setHighlightId(null), 1200);
+                break;
+              }
+            }
+          }
+          return entries;
+        });
+      }
+    } catch {
+      // Silently fail — the mini leaderboard is optional
+    }
   }, []);
+
+  useEffect(() => {
+    fetchMiniLeaderboard();
+    const interval = setInterval(fetchMiniLeaderboard, 6000);
+    return () => clearInterval(interval);
+  }, [fetchMiniLeaderboard]);
 
   const handleGoogleSignIn = useCallback(async () => {
     if (authState !== "idle" || !selectedCo) return;
     selectCompany(selectedCo);
     setAuthState("signing-in");
-    const user = await mockGoogleSignIn();
-    setUserName(user.name.split(" ")[0]);
-    setUserEmail(user.email);
-    setAuthState("saving");
-    await mockSaveUserToDb(user);
-    setAuthState("sending-email");
-    await mockSendWelcomeEmail(user);
-    setUser(user);
-    setAuthState("welcome-toast");
-    setTimeout(() => setScreen("select"), 2200);
-  }, [authState, selectedCo, selectCompany, setUser, setScreen]);
+    // This triggers a redirect to Google OAuth — the page will reload after
+    await signInWithGoogle();
+  }, [authState, selectedCo, selectCompany]);
 
-  const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email";
+  const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email" || status === "loading";
   const activeCompany = companies.find((c) => c.id === selectedCo);
   const previewVehicles = selectedCo ? getVehiclesByCompany(selectedCo) : [];
 
@@ -403,7 +435,13 @@ export function WelcomeScreen() {
                   border: "1px solid rgba(255,255,255,0.06)",
                 }}
               >
-                {miniLeaderboard.map((entry, index) => {
+                {miniLeaderboard.length === 0 ? (
+                  <div className="px-3 py-6 text-center">
+                    <span className="text-[10px] tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.25)" }}>
+                      Se el primero en el ranking
+                    </span>
+                  </div>
+                ) : miniLeaderboard.map((entry, index) => {
                   const config = badgeConfig[entry.badge];
                   const BadgeIcon = config.icon;
                   const isUpdating = highlightId === entry.id;
@@ -413,7 +451,7 @@ export function WelcomeScreen() {
                       layout
                       className="flex items-center gap-2.5 px-3 py-2"
                       style={{
-                        borderBottom: index < 4 ? "1px solid rgba(255,255,255,0.03)" : "none",
+                        borderBottom: index < miniLeaderboard.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none",
                         background: isUpdating ? "rgba(255,215,0,0.04)" : "transparent",
                       }}
                       transition={{ layout: { type: "spring", stiffness: 400, damping: 35 } }}
@@ -426,16 +464,27 @@ export function WelcomeScreen() {
                       >
                         {index + 1}
                       </span>
-                      <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "rgba(255,255,255,0.35)",
-                          border: "1px solid rgba(255,255,255,0.06)",
-                        }}
-                      >
-                        {entry.name.charAt(0)}
-                      </div>
+                      {entry.avatar && entry.avatar.startsWith("http") ? (
+                        <Image
+                          src={entry.avatar}
+                          alt={entry.name}
+                          width={20}
+                          height={20}
+                          className="rounded-full object-cover shrink-0"
+                          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                        />
+                      ) : (
+                        <div
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
+                          style={{
+                            background: "rgba(255,255,255,0.05)",
+                            color: "rgba(255,255,255,0.35)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                          }}
+                        >
+                          {entry.name.charAt(0)}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0 flex items-center gap-1">
                         <span className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.55)" }}>
                           {entry.name}
@@ -562,7 +611,7 @@ export function WelcomeScreen() {
                   className="text-[9px] text-center mt-4 max-w-[260px] leading-relaxed"
                   style={{ color: "rgba(255,255,255,0.15)" }}
                 >
-                  Al continuar, aceptas recibir un email de bienvenida de {activeCompany?.name}. Tu informacion se mantiene segura y privada.
+                  Al continuar, inicias sesion con tu cuenta de Google para {activeCompany?.name}. Tu informacion se mantiene segura y privada.
                 </motion.p>
               )}
             </motion.div>
@@ -641,7 +690,7 @@ export function WelcomeScreen() {
                   transition={{ duration: 1.5, repeat: Infinity }}
                 />
                 <span className="text-[10px] tracking-wider" style={{ color: "rgba(74,222,128,0.7)" }}>
-                  {"Email enviado a "}{userEmail}
+                  {"Conectado como "}{userEmail}
                 </span>
               </motion.div>
 

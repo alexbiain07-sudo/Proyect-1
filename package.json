@@ -55,6 +55,7 @@
     "react-resizable-panels": "^2.1.7",
     "framer-motion": "^11.15.0",
     "recharts": "2.15.0",
+    "next-auth": "5.0.0-beta.25",
     "zustand": "^5.0.0",
     "sonner": "^1.7.1",
     "tailwind-merge": "^3.3.1",

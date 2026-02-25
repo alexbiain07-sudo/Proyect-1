@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Bebas_Neue } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { SessionProvider } from '@/components/providers/session-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -22,6 +23,20 @@ export const metadata: Metadata = {
     title: 'Drive Experience | Grupo Meucci',
     description: 'Descubri tu vehiculo ideal con Grupo Meucci. Elegi entre Scuderia, Dallas y Alliance.',
     type: 'website',
+    images: [
+      {
+        url: '/api/og?name=Grupo+Meucci&score=0&title=DRIVE+EXPERIENCE&badge=gold&vehicle=',
+        width: 1200,
+        height: 630,
+        alt: 'Drive Experience - Grupo Meucci',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Drive Experience | Grupo Meucci',
+    description: 'Descubri tu vehiculo ideal con Grupo Meucci.',
+    images: ['/api/og?name=Grupo+Meucci&score=0&title=DRIVE+EXPERIENCE&badge=gold&vehicle='],
   },
 }
 
@@ -33,7 +48,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="font-sans antialiased">
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
         <Analytics />
       </body>
     </html>
