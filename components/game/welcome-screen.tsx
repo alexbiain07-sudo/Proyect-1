@@ -2,11 +2,11 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies, getVehiclesByCompany, type CompanyId } from "@/lib/game-data";
-import { sessionToAuthUser } from "@/lib/mock-auth";
-import { signInWithGoogle } from "@/lib/auth-actions";
+import { sessionToAuthUser, type AuthUser } from "@/lib/mock-auth";
+import { signInWithGoogle, getAuthStatus } from "@/lib/auth-actions";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Trophy, Crown, Star, Award, Target, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
@@ -77,7 +77,15 @@ type AuthState = "idle" | "signing-in" | "saving" | "sending-email" | "welcome-t
 
 export function WelcomeScreen() {
   const { setScreen, setUser, selectCompany, isAuthenticated } = useGameStore();
-  const { data: session, status } = useSession();
+  let sessionData: { data: { user?: Record<string, unknown> } | null; status: string } = { data: null, status: "unauthenticated" };
+  try {
+    // useSession may throw if SessionProvider is not wrapping (auth not configured)
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    sessionData = useSession();
+  } catch {
+    // Auth not configured — continue with fallback flow
+  }
+  const { data: session, status } = sessionData;
   const [phase, setPhase] = useState<"intro" | "companies" | "ready">("intro");
   const [authState, setAuthState] = useState<AuthState>("idle");
   const [userName, setUserName] = useState("");
@@ -86,6 +94,19 @@ export function WelcomeScreen() {
   const [selectedCo, setSelectedCo] = useState<CompanyId | null>(null);
   const [miniLeaderboard, setMiniLeaderboard] = useState<MiniEntry[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"checking" | "google" | "local">("checking");
+  const authChecked = useRef(false);
+
+  // Check if Google OAuth is configured on mount
+  useEffect(() => {
+    if (authChecked.current) return;
+    authChecked.current = true;
+    getAuthStatus().then((res) => {
+      setAuthMode(res.configured ? "google" : "local");
+    }).catch(() => {
+      setAuthMode("local");
+    });
+  }, []);
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase("companies"), 1800);
@@ -95,14 +116,14 @@ export function WelcomeScreen() {
 
   // When the user returns from Google OAuth with a valid session, auto-complete the flow
   useEffect(() => {
+    if (authMode !== "google") return;
     if (status === "authenticated" && session?.user && !isAuthenticated && selectedCo) {
-      const authUser = sessionToAuthUser(session.user);
+      const authUser = sessionToAuthUser(session.user as { id?: string; name?: string | null; email?: string | null; image?: string | null });
       setUserName(authUser.name.split(" ")[0]);
       setUserEmail(authUser.email);
       setUser(authUser);
       selectCompany(selectedCo);
 
-      // Post the lead data to our API
       fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,7 +138,7 @@ export function WelcomeScreen() {
       setAuthState("welcome-toast");
       setTimeout(() => setScreen("select"), 2200);
     }
-  }, [status, session, isAuthenticated, selectedCo, setUser, selectCompany, setScreen]);
+  }, [authMode, status, session, isAuthenticated, selectedCo, setUser, selectCompany, setScreen]);
 
   // Persist selectedCo to sessionStorage so it survives the OAuth redirect
   useEffect(() => {
@@ -138,6 +159,7 @@ export function WelcomeScreen() {
   const fetchMiniLeaderboard = useCallback(async () => {
     try {
       const res = await fetch("/api/scores?limit=5");
+      if (!res.ok) return;
       const data = await res.json();
       if (data.scores && Array.isArray(data.scores) && data.scores.length > 0) {
         const getBadge = (s: number) => {
@@ -156,7 +178,6 @@ export function WelcomeScreen() {
         }));
         entries.sort((a, b) => b.score - a.score);
 
-        // Check if any entry changed score to animate
         setMiniLeaderboard((prev) => {
           if (prev.length > 0) {
             for (const entry of entries) {
@@ -172,25 +193,56 @@ export function WelcomeScreen() {
         });
       }
     } catch {
-      // Silently fail — the mini leaderboard is optional
+      // Silently fail
     }
   }, []);
 
   useEffect(() => {
     fetchMiniLeaderboard();
-    const interval = setInterval(fetchMiniLeaderboard, 6000);
+    const interval = setInterval(fetchMiniLeaderboard, 8000);
     return () => clearInterval(interval);
   }, [fetchMiniLeaderboard]);
 
+  /**
+   * Handles the sign-in action.
+   * - If Google OAuth is configured: triggers redirect to Google
+   * - If not: creates a local user with a generated name and proceeds
+   */
   const handleGoogleSignIn = useCallback(async () => {
     if (authState !== "idle" || !selectedCo) return;
     selectCompany(selectedCo);
     setAuthState("signing-in");
-    // This triggers a redirect to Google OAuth — the page will reload after
-    await signInWithGoogle();
-  }, [authState, selectedCo, selectCompany]);
 
-  const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email" || status === "loading";
+    if (authMode === "google") {
+      const result = await signInWithGoogle();
+      // If signInWithGoogle returns fallback, switch to local mode
+      if (result && typeof result === "object" && "fallback" in result) {
+        setAuthMode("local");
+      } else {
+        // Google redirect will happen — page reloads
+        return;
+      }
+    }
+
+    // Local fallback flow: create a guest user
+    await new Promise((r) => setTimeout(r, 800));
+    const guestId = `guest_${Date.now()}`;
+    const guestNames = ["Piloto", "Corredor", "Conductor", "Velocista", "Crack"];
+    const guestName = guestNames[Math.floor(Math.random() * guestNames.length)];
+    const user: AuthUser = {
+      id: guestId,
+      name: guestName,
+      email: "",
+      avatar: guestName.charAt(0),
+    };
+    setUserName(guestName);
+    setUserEmail("");
+    setUser(user);
+    setAuthState("welcome-toast");
+    setTimeout(() => setScreen("select"), 1800);
+  }, [authState, authMode, selectedCo, selectCompany, setUser, setScreen]);
+
+  const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email";
   const activeCompany = companies.find((c) => c.id === selectedCo);
   const previewVehicles = selectedCo ? getVehiclesByCompany(selectedCo) : [];
 
@@ -549,22 +601,22 @@ export function WelcomeScreen() {
                       transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
                     />
                     <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-                      {authState === "signing-in" && "Conectando con Google..."}
+                      {authState === "signing-in" && (authMode === "google" ? "Conectando con Google..." : "Preparando...")}
                       {authState === "saving" && "Registrando tu cuenta..."}
                       {authState === "sending-email" && "Enviando bienvenida..."}
                     </span>
                   </div>
                 ) : (
                   <>
-                    <GoogleIcon className="w-5 h-5 relative z-10" />
+                    {authMode === "google" && <GoogleIcon className="w-5 h-5 relative z-10" />}
                     <span className="relative z-10 text-sm font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.85)" }}>
-                      Jugar con {activeCompany?.name}
+                      {authMode === "google" ? `Jugar con ${activeCompany?.name}` : `Jugar con ${activeCompany?.name}`}
                     </span>
                   </>
                 )}
               </motion.button>
 
-              {/* Loading steps */}
+              {/* Loading indicator */}
               <AnimatePresence>
                 {isLoading && (
                   <motion.div
@@ -573,32 +625,19 @@ export function WelcomeScreen() {
                     exit={{ opacity: 0, y: -5 }}
                     className="flex items-center gap-2 mt-4"
                   >
-                    {["signing-in", "saving", "sending-email"].map((step, i) => {
-                      const stepState =
-                        ["signing-in", "saving", "sending-email"].indexOf(authState) > i
-                          ? "done"
-                          : authState === step
-                            ? "active"
-                            : "pending";
-                      return (
-                        <motion.div key={step} className="flex items-center gap-1.5">
-                          <motion.div
-                            className="w-1.5 h-1.5 rounded-full"
-                            animate={{
-                              backgroundColor:
-                                stepState === "done" ? "rgba(74,222,128,0.8)"
-                                  : stepState === "active" ? "rgba(255,255,255,0.6)"
-                                    : "rgba(255,255,255,0.15)",
-                              scale: stepState === "active" ? [1, 1.4, 1] : 1,
-                            }}
-                            transition={stepState === "active" ? { scale: { duration: 0.8, repeat: Infinity } } : { duration: 0.3 }}
-                          />
-                          {i < 2 && (
-                            <div className="w-6 h-px" style={{ background: stepState === "done" ? "rgba(74,222,128,0.3)" : "rgba(255,255,255,0.08)" }} />
-                          )}
-                        </motion.div>
-                      );
-                    })}
+                    <motion.div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: "rgba(255,255,255,0.6)" }}
+                      animate={{ scale: [1, 1.4, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                    />
+                    <div className="w-6 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    <motion.div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+                      animate={{ scale: [1, 1.4, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: 0.3 }}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -611,7 +650,10 @@ export function WelcomeScreen() {
                   className="text-[9px] text-center mt-4 max-w-[260px] leading-relaxed"
                   style={{ color: "rgba(255,255,255,0.15)" }}
                 >
-                  Al continuar, inicias sesion con tu cuenta de Google para {activeCompany?.name}. Tu informacion se mantiene segura y privada.
+                  {authMode === "google"
+                    ? `Al continuar, inicias sesion con tu cuenta de Google para ${activeCompany?.name}. Tu informacion se mantiene segura y privada.`
+                    : `Al continuar, accedes a la experiencia de ${activeCompany?.name}.`
+                  }
                 </motion.p>
               )}
             </motion.div>
@@ -690,7 +732,7 @@ export function WelcomeScreen() {
                   transition={{ duration: 1.5, repeat: Infinity }}
                 />
                 <span className="text-[10px] tracking-wider" style={{ color: "rgba(74,222,128,0.7)" }}>
-                  {"Conectado como "}{userEmail}
+                  {userEmail ? `Conectado como ${userEmail}` : "Listo para jugar"}
                 </span>
               </motion.div>
 
