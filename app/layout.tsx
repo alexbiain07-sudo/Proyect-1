@@ -18,22 +18,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Drive Experience | Grupo Meucci',
   description: 'Descubri tu vehiculo ideal con Grupo Meucci. Elegi entre Scuderia, Dallas y Alliance. Esquiva obstaculos, activa el nitro y competi por el mejor puntaje.',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+  openGraph: {
+    title: 'Drive Experience | Grupo Meucci',
+    description: 'Descubri tu vehiculo ideal con Grupo Meucci. Elegi entre Scuderia, Dallas y Alliance.',
+    type: 'website',
   },
 }
 

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Crown, Star, Trophy, Award, Target, ArrowLeft, RotateCcw } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
 
 interface LeaderboardEntry {
   id: string;
@@ -159,14 +160,11 @@ export function LeaderboardScreen() {
           >
             <ArrowLeft className="w-5 h-5" style={{ color: "rgba(255,255,255,0.5)" }} />
           </button>
-          <Image
-            src={activeCompany?.logo || "/images/grupo-meucci-logo.png"}
-            alt={activeCompany?.name || "Grupo Meucci"}
-            width={100}
-            height={24}
-            className="brightness-0 invert"
-            style={{ width: "auto", height: "13px", opacity: 0.3 }}
-          />
+          {activeCompany ? (
+            <CompanyLogo companyId={activeCompany.id} size="sm" style={{ opacity: 0.3, color: "rgba(255,255,255,0.4)" }} />
+          ) : (
+            <GrupoMeucciLogo size="sm" style={{ opacity: 0.3 }} />
+          )}
           <div className="w-9" />
         </div>
 
@@ -367,14 +365,7 @@ export function LeaderboardScreen() {
           <span className="text-[8px] tracking-[0.3em] uppercase font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
             Una empresa del
           </span>
-          <Image
-            src="/images/grupo-meucci-logo.png"
-            alt="Grupo Meucci"
-            width={130}
-            height={44}
-            className="brightness-0 invert drop-shadow-[0_0_10px_rgba(255,255,255,0.18)]"
-            style={{ width: "auto", height: "22px", opacity: 0.75 }}
-          />
+          <GrupoMeucciLogo size="sm" style={{ opacity: 0.75 }} />
         </div>
       </motion.div>
     </motion.div>

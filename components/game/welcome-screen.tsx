@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { Trophy, Crown, Star, Award, Target, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
 
 /* ---- Mini Leaderboard Data ---- */
 const MOCK_NAMES = [
@@ -199,15 +200,7 @@ export function WelcomeScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Image
-            src="/images/grupo-meucci-logo.png"
-            alt="Grupo Meucci"
-            width={260}
-            height={86}
-            className="brightness-0 invert drop-shadow-[0_0_20px_rgba(255,255,255,0.12)]"
-            style={{ width: "auto", height: "55px", opacity: 0.95 }}
-            priority
-          />
+          <GrupoMeucciLogo size="lg" style={{ opacity: 0.95 }} />
           <motion.div
             className="w-20 h-px mt-4"
             style={{ background: "linear-gradient(90deg, transparent, rgba(200,170,140,0.35), transparent)" }}
@@ -270,15 +263,12 @@ export function WelcomeScreen() {
                     <div className="flex items-center gap-4 p-4">
                       {/* Company Logo */}
                       <div
-                        className="w-[80px] h-[36px] relative shrink-0 flex items-center justify-center"
+                        className="w-[80px] h-[36px] shrink-0 flex items-center justify-center"
                       >
-                        <Image
-                          src={company.logo}
-                          alt={company.name}
-                          width={80}
-                          height={36}
-                          className="brightness-0 invert object-contain"
-                          style={{ width: "auto", height: "auto", maxHeight: "28px", maxWidth: "80px", opacity: isSelected ? 0.95 : 0.5 }}
+                        <CompanyLogo
+                          companyId={company.id}
+                          size="sm"
+                          style={{ opacity: isSelected ? 0.95 : 0.5, color: isSelected ? company.accentColor : "rgba(255,255,255,0.5)" }}
                         />
                       </div>
 

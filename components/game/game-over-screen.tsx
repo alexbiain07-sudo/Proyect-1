@@ -3,9 +3,10 @@
 import { useGameStore } from "@/lib/game-store";
 import { companies } from "@/lib/game-data";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Share2, Trophy, Zap, MapPin, Crown, Star, Award, Target } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { RotateCcw, Trophy, Zap, MapPin, Crown, Star, Award, Target, Copy, Check } from "lucide-react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
 
 const badgeConfig = {
   diamond: { icon: Crown, color: "#B9F2FF", glow: "rgba(185,242,255,0.3)", label: "DIAMANTE" },
@@ -96,22 +97,38 @@ export function GameOverScreen() {
     setScreen("form");
   };
 
-  const handleShare = async () => {
-    const userName = user?.name.split(" ")[0] || "Un conductor";
-    const text = `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?`;
+  const [copied, setCopied] = useState(false);
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${activeCompany?.name || "Grupo Meucci"} Drive Experience`,
-          text,
-          url: window.location.href,
-        });
-      } catch {
-        /* cancelled */
+  const getShareText = useCallback(() => {
+    const userName = user?.name.split(" ")[0] || "Un conductor";
+    return `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?`;
+  }, [user, driverProfile, currentScore, selectedVehicle]);
+
+  const handleShareFacebook = useCallback(() => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const text = getShareText();
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
+    window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=400");
+  }, [getShareText]);
+
+  const handleShareInstagram = useCallback(async () => {
+    const text = getShareText();
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const fullText = `${text}\n\n${url}`;
+    try {
+      await navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      // Try Instagram Stories deep link on mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.open("instagram://story-camera", "_blank");
       }
+    } catch {
+      // Fallback if clipboard fails
+      setCopied(false);
     }
-  };
+  }, [getShareText]);
 
   return (
     <div
@@ -175,14 +192,11 @@ export function GameOverScreen() {
               {user.avatar}
             </div>
           )}
-          <Image
-            src={activeCompany?.logo || "/images/grupo-meucci-logo.png"}
-            alt={activeCompany?.name || "Grupo Meucci"}
-            width={120}
-            height={28}
-            className="brightness-0 invert"
-            style={{ width: "auto", height: "auto", maxHeight: "16px", opacity: 0.35 }}
-          />
+          {activeCompany ? (
+            <CompanyLogo companyId={activeCompany.id} size="sm" style={{ opacity: 0.35, color: "rgba(255,255,255,0.5)" }} />
+          ) : (
+            <GrupoMeucciLogo size="sm" style={{ opacity: 0.35 }} />
+          )}
         </motion.div>
 
         {/* New record badge */}
@@ -407,32 +421,54 @@ export function GameOverScreen() {
           />
         </button>
 
-        {/* Secondary actions */}
-        <div className="flex gap-2.5">
+        {/* Social share + play again */}
+        <div className="flex gap-2">
           <button
-            onClick={handleShare}
-            className="flex-1 py-3 rounded-xl font-bebas text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.97] touch-manipulation"
+            onClick={handleShareInstagram}
+            className="flex-1 py-3 rounded-xl font-bebas text-xs tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] touch-manipulation"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.7)",
+              background: "linear-gradient(135deg, rgba(225,48,108,0.12), rgba(131,58,180,0.08))",
+              border: "1px solid rgba(225,48,108,0.2)",
+              color: "rgba(225,48,108,0.9)",
             }}
           >
-            <Share2 className="w-4 h-4" />
-            COMPARTIR
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                COPIADO
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                INSTAGRAM
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleShareFacebook}
+            className="flex-1 py-3 rounded-xl font-bebas text-xs tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] touch-manipulation"
+            style={{
+              background: "rgba(24,119,242,0.1)",
+              border: "1px solid rgba(24,119,242,0.2)",
+              color: "rgba(24,119,242,0.9)",
+            }}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            FACEBOOK
           </button>
 
           <button
             onClick={handlePlayAgain}
-            className="flex-1 py-3 rounded-xl font-bebas text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.97] touch-manipulation"
+            className="flex-1 py-3 rounded-xl font-bebas text-xs tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] touch-manipulation"
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.1)",
               color: "rgba(255,255,255,0.7)",
             }}
           >
-            <RotateCcw className="w-4 h-4" />
-            JUGAR DE NUEVO
+            <RotateCcw className="w-3.5 h-3.5" />
+            JUGAR
           </button>
         </div>
 
@@ -440,14 +476,7 @@ export function GameOverScreen() {
           <span className="text-[8px] tracking-[0.3em] uppercase font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
             Una empresa del
           </span>
-          <Image
-            src="/images/grupo-meucci-logo.png"
-            alt="Grupo Meucci"
-            width={140}
-            height={46}
-            className="brightness-0 invert drop-shadow-[0_0_10px_rgba(255,255,255,0.18)]"
-            style={{ width: "auto", height: "24px", opacity: 0.8 }}
-          />
+          <GrupoMeucciLogo size="sm" style={{ opacity: 0.8 }} />
         </div>
       </motion.div>
     </div>

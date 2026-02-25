@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, Loader2, Unlock, Sparkles } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
+import { GrupoMeucciLogo } from "@/components/ui/brand-logo";
 
 interface FormData {
   nombre: string;
@@ -46,13 +47,8 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
     if (!validateForm()) return;
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("Form submitted:", {
-      ...formData,
-      vehiculoInteres: selectedVehicle?.name,
-      vehiculoId: selectedVehicle?.id,
-      puntajeJuego: currentScore,
-      nivelConductor: driverProfile?.title,
-    });
+    // TODO: Replace with API route POST to /api/leads when AWS backend is connected
+    // Payload: { ...formData, vehiculoInteres: selectedVehicle?.name, vehiculoId: selectedVehicle?.id, puntajeJuego: currentScore, nivelConductor: driverProfile?.title }
     submitForm();
     setIsSubmitting(false);
   };
@@ -287,14 +283,7 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
             <span className="text-[8px] tracking-[0.3em] uppercase font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
               Una empresa del
             </span>
-            <Image
-              src="/images/grupo-meucci-logo.png"
-              alt="Grupo Meucci"
-              width={130}
-              height={44}
-              className="brightness-0 invert drop-shadow-[0_0_10px_rgba(255,255,255,0.18)]"
-              style={{ width: "auto", height: "22px", opacity: 0.75 }}
-            />
+            <GrupoMeucciLogo size="sm" style={{ opacity: 0.75 }} />
           </div>
         </motion.div>
       </motion.form>

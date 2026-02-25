@@ -71,6 +71,10 @@ export function DrivingGame() {
   const comboRef = useRef(0);
   const shieldRef = useRef(false);
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref-based obstacle, coin and power-up tracking for reliable collision detection
+  const obstaclesRef = useRef<Obstacle[]>([]);
+  const coinsDataRef = useRef<Coin[]>([]);
+  const powerUpsDataRef = useRef<PowerUp[]>([]);
 
   const baseSpeed = 4 + vehicle.speed * 0.6;
   const handling = vehicle.handling * 25;
@@ -176,12 +180,17 @@ export function DrivingGame() {
     });
   }, [updateScore, setScreen]);
 
-  // Main game loop
+  // Main game loop - uses refs for all game entity tracking to avoid React batching issues
   useEffect(() => {
     if (!gameStarted || gameOver) return;
 
     gameOverRef.current = false;
+    obstaclesRef.current = [];
+    coinsDataRef.current = [];
+    powerUpsDataRef.current = [];
     let currentDistance = 0;
+
+    const PLAYER_Y = 520;
 
     const gameLoop = (currentTime: number) => {
       if (gameOverRef.current) return;
@@ -207,16 +216,15 @@ export function DrivingGame() {
       }
 
       // Spawn obstacles with variety
-      const spawnRate = 0.012 + currentDistance / 100000;
+      const spawnRate = 0.015 + currentDistance / 80000;
       if (Math.random() < spawnRate) {
         const lane = Math.floor(Math.random() * LANES);
         const types: Obstacle["type"][] = ["car_red", "car_blue", "car_white", "truck", "cone"];
         const type = types[Math.floor(Math.random() * types.length)];
         const obsSpeed = type === "truck" ? 0.3 : type === "cone" ? 0 : 0.5 + Math.random() * 0.5;
-        setObstacles((prev) => [
-          ...prev,
-          { id: obstacleIdRef.current++, lane, y: -120, type, speed: obsSpeed },
-        ]);
+        obstaclesRef.current.push({
+          id: obstacleIdRef.current++, lane, y: -120, type, speed: obsSpeed,
+        });
       }
 
       // Spawn coins in patterns
@@ -225,13 +233,10 @@ export function DrivingGame() {
         const pattern = Math.random();
         if (pattern < 0.3) {
           for (let i = 0; i < 3; i++) {
-            setCoins((prev) => [
-              ...prev,
-              { id: coinIdRef.current++, lane, y: -50 - i * 40 },
-            ]);
+            coinsDataRef.current.push({ id: coinIdRef.current++, lane, y: -50 - i * 40 });
           }
         } else {
-          setCoins((prev) => [...prev, { id: coinIdRef.current++, lane, y: -50 }]);
+          coinsDataRef.current.push({ id: coinIdRef.current++, lane, y: -50 });
         }
       }
 
@@ -240,122 +245,118 @@ export function DrivingGame() {
         const lane = Math.floor(Math.random() * LANES);
         const types: PowerUp["type"][] = ["shield", "x2"];
         const type = types[Math.floor(Math.random() * types.length)];
-        setPowerUps((prev) => [...prev, { id: powerUpIdRef.current++, lane, y: -50, type }]);
+        powerUpsDataRef.current.push({ id: powerUpIdRef.current++, lane, y: -50, type });
       }
 
-      // Update obstacles
+      // --- Update obstacles and check collisions directly on refs ---
+      const playerX = playerLaneRef.current * LANE_WIDTH + LANE_WIDTH / 2;
       let collisionDetected = false;
-      let shieldUsedObsId: number | null = null;
 
-      setObstacles((prev) => {
-        if (gameOverRef.current) return prev;
+      const updatedObs: Obstacle[] = [];
+      for (const obs of obstaclesRef.current) {
+        const newY = obs.y + currentSpeed * (2 - obs.speed);
+        if (newY >= 750) continue; // off-screen, remove
 
-        const updated = prev
-          .map((obs) => ({
-            ...obs,
-            y: obs.y + currentSpeed * (2 - obs.speed),
-          }))
-          .filter((obs) => obs.y < 750);
+        const obsX = obs.lane * LANE_WIDTH + LANE_WIDTH / 2;
+        const hitboxX = obs.type === "cone" ? 25 : 38;
+        const hitboxY = obs.type === "truck" ? 55 : 40;
 
-        const playerX = playerLaneRef.current * LANE_WIDTH + LANE_WIDTH / 2;
-        const playerY = 520;
+        // Check collision with sweep (check previous and current Y)
+        const prevY = obs.y;
+        const minY = Math.min(prevY, newY);
+        const maxY = Math.max(prevY, newY);
+        const playerInYRange = PLAYER_Y >= minY - hitboxY && PLAYER_Y <= maxY + hitboxY;
 
-        for (const obs of updated) {
-          const obsX = obs.lane * LANE_WIDTH + LANE_WIDTH / 2;
-          const obsY = obs.y;
-          const hitboxX = obs.type === "cone" ? 20 : 35;
-          const hitboxY = obs.type === "truck" ? 50 : 35;
-
-          // Near miss detection
-          if (
-            Math.abs(playerX - obsX) < 50 &&
-            Math.abs(playerY - obsY) < 60 &&
-            Math.abs(playerX - obsX) >= hitboxX
-          ) {
-            scoreRef.current += 50;
+        if (Math.abs(playerX - obsX) < hitboxX && playerInYRange) {
+          if (shieldRef.current) {
+            // Shield absorbs hit
+            shieldRef.current = false;
+            setShield(false);
+            setShowPowerUpText("ESCUDO USADO!");
+            setTimeout(() => setShowPowerUpText(null), 1000);
+            continue; // remove this obstacle
           }
-
-          if (Math.abs(playerX - obsX) < hitboxX && Math.abs(playerY - obsY) < hitboxY) {
-            if (shieldRef.current) {
-              shieldUsedObsId = obs.id;
-              return prev.filter((o) => o.id !== obs.id);
-            }
-            collisionDetected = true;
-            return prev;
-          }
+          collisionDetected = true;
+          break;
         }
 
-        return updated;
-      });
+        // Near miss detection
+        if (
+          Math.abs(playerX - obsX) < 55 &&
+          Math.abs(PLAYER_Y - newY) < 65 &&
+          Math.abs(playerX - obsX) >= hitboxX
+        ) {
+          scoreRef.current += 50;
+        }
 
-      // Handle collision effects outside of state updaters
-      if (shieldUsedObsId !== null) {
-        shieldRef.current = false;
-        setShield(false);
-        setShowPowerUpText("ESCUDO USADO!");
-        setTimeout(() => setShowPowerUpText(null), 1000);
+        updatedObs.push({ ...obs, y: newY });
       }
+
       if (collisionDetected) {
+        // Ensure we sync state one last time before game over
+        obstaclesRef.current = updatedObs;
+        setObstacles([...updatedObs]);
         handleGameOver();
         return;
       }
 
-      // Update coins
-      setCoins((prev) => {
-        const playerX = playerLaneRef.current * LANE_WIDTH + LANE_WIDTH / 2;
-        const playerY = 520;
+      obstaclesRef.current = updatedObs;
 
-        return prev
-          .map((coin) => ({ ...coin, y: coin.y + currentSpeed * 2 }))
-          .filter((coin) => {
-            const coinX = coin.lane * LANE_WIDTH + LANE_WIDTH / 2;
+      // --- Update coins with collision check on refs ---
+      const updatedCoins: Coin[] = [];
+      for (const coin of coinsDataRef.current) {
+        const newY = coin.y + currentSpeed * 2;
+        if (newY >= 750) continue;
 
-            if (Math.abs(playerX - coinX) < 45 && Math.abs(playerY - coin.y) < 45) {
-              coinsRef.current += 1;
-              setCoinsCollected(coinsRef.current);
-              const comboBonus = 100 * (comboRef.current + 1);
-              scoreRef.current += comboBonus;
-              setScore(scoreRef.current);
-              setCombo((c) => c + 1);
-              setShowCombo(true);
+        const coinX = coin.lane * LANE_WIDTH + LANE_WIDTH / 2;
+        if (Math.abs(playerX - coinX) < 45 && Math.abs(PLAYER_Y - newY) < 45) {
+          coinsRef.current += 1;
+          setCoinsCollected(coinsRef.current);
+          const comboBonus = 100 * (comboRef.current + 1);
+          scoreRef.current += comboBonus;
+          setScore(scoreRef.current);
+          setCombo((c) => c + 1);
+          setShowCombo(true);
 
-              if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-              comboTimeoutRef.current = setTimeout(() => {
-                setCombo(0);
-                setShowCombo(false);
-              }, 1500);
+          if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
+          comboTimeoutRef.current = setTimeout(() => {
+            setCombo(0);
+            setShowCombo(false);
+          }, 1500);
+          continue; // collected, don't keep
+        }
+        updatedCoins.push({ ...coin, y: newY });
+      }
+      coinsDataRef.current = updatedCoins;
 
-              return false;
-            }
-            return coin.y < 750;
-          });
-      });
+      // --- Update power-ups with collision check on refs ---
+      const updatedPowerUps: PowerUp[] = [];
+      for (const p of powerUpsDataRef.current) {
+        const newY = p.y + currentSpeed * 2;
+        if (newY >= 750) continue;
 
-      // Update power-ups
-      setPowerUps((prev) => {
-        const playerX = playerLaneRef.current * LANE_WIDTH + LANE_WIDTH / 2;
-        const playerY = 520;
+        const pX = p.lane * LANE_WIDTH + LANE_WIDTH / 2;
+        if (Math.abs(playerX - pX) < 45 && Math.abs(PLAYER_Y - newY) < 45) {
+          if (p.type === "shield") {
+            shieldRef.current = true;
+            setShield(true);
+            setShowPowerUpText("ESCUDO ACTIVADO!");
+          } else if (p.type === "x2") {
+            scoreRef.current += 500;
+            setScore(scoreRef.current);
+            setShowPowerUpText("+500 BONUS!");
+          }
+          setTimeout(() => setShowPowerUpText(null), 1000);
+          continue;
+        }
+        updatedPowerUps.push({ ...p, y: newY });
+      }
+      powerUpsDataRef.current = updatedPowerUps;
 
-        return prev
-          .map((p) => ({ ...p, y: p.y + currentSpeed * 2 }))
-          .filter((p) => {
-            const pX = p.lane * LANE_WIDTH + LANE_WIDTH / 2;
-
-            if (Math.abs(playerX - pX) < 45 && Math.abs(playerY - p.y) < 45) {
-              if (p.type === "shield") {
-                setShield(true);
-                setShowPowerUpText("ESCUDO ACTIVADO!");
-              } else if (p.type === "x2") {
-                scoreRef.current += 500;
-                setScore(scoreRef.current);
-                setShowPowerUpText("+500 BONUS!");
-              }
-              setTimeout(() => setShowPowerUpText(null), 1000);
-              return false;
-            }
-            return p.y < 750;
-          });
-      });
+      // Sync refs to state for rendering
+      setObstacles([...obstaclesRef.current]);
+      setCoins([...coinsDataRef.current]);
+      setPowerUps([...powerUpsDataRef.current]);
 
       frameRef.current = requestAnimationFrame(gameLoop);
     };
