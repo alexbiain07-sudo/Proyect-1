@@ -86,7 +86,7 @@ export function Footer() {
           {/* Logo col */}
           <div className="md:col-span-1">
             <div className="mb-4">
-              <MeucciNavLogo size="sm" style={{ maxHeight: "24px" }} />
+              <MeucciNavLogo size="sm" style={{ height: 24, width: 100 }} />
             </div>
             <p
               className="text-[12px] leading-relaxed"

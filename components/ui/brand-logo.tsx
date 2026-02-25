@@ -33,33 +33,37 @@ const sizeWidths = {
   lg: 260,
 };
 
-export function GrupoMeucciLogo({ className, style, size = "md" }: LogoProps) {
+export function GrupoMeucciLogo({ className, style, size = "md", priority = false }: LogoProps & { priority?: boolean }) {
   const h = sizeHeights[size];
   const w = sizeWidths[size];
   return (
-    <Image
-      src={LOGO_URLS.meucci}
-      alt="Grupo Meucci"
-      width={w}
-      height={h}
-      className={`brightness-0 invert select-none drop-shadow-[0_0_10px_rgba(255,255,255,0.12)] ${className || ""}`}
-      style={{ maxHeight: `${h}px`, ...style, width: "auto", height: "auto" }}
-    />
+    <div className={`relative ${className || ""}`} style={{ width: w, height: h, ...style }}>
+      <Image
+        src={LOGO_URLS.meucci}
+        alt="Grupo Meucci"
+        fill
+        sizes={`${w}px`}
+        priority={priority}
+        className="brightness-0 invert select-none drop-shadow-[0_0_10px_rgba(255,255,255,0.12)] object-contain"
+      />
+    </div>
   );
 }
 
-export function MeucciNavLogo({ className, style, size = "md" }: LogoProps) {
+export function MeucciNavLogo({ className, style, size = "md", priority = false }: LogoProps & { priority?: boolean }) {
   const h = sizeHeights[size];
   const w = sizeWidths[size];
   return (
-    <Image
-      src={LOGO_URLS.meucci}
-      alt="Meucci Automotores"
-      width={w}
-      height={h}
-      className={`brightness-0 invert select-none ${className || ""}`}
-      style={{ maxHeight: `${h}px`, ...style, width: "auto", height: "auto" }}
-    />
+    <div className={`relative ${className || ""}`} style={{ width: w, height: h, ...style }}>
+      <Image
+        src={LOGO_URLS.meucci}
+        alt="Meucci Automotores"
+        fill
+        sizes={`${w}px`}
+        priority={priority}
+        className="brightness-0 invert select-none object-contain"
+      />
+    </div>
   );
 }
 
@@ -68,7 +72,8 @@ export function CompanyLogo({
   className,
   style,
   size = "md",
-}: LogoProps & { companyId: "scuderia" | "dallas" | "alliance" | string }) {
+  priority = false,
+}: LogoProps & { companyId: "scuderia" | "dallas" | "alliance" | string; priority?: boolean }) {
   const h = sizeHeights[size];
   const w = sizeWidths[size];
   const url = LOGO_URLS[companyId as keyof typeof LOGO_URLS];
@@ -88,13 +93,15 @@ export function CompanyLogo({
   const isWhiteLogo = companyId === "scuderia";
 
   return (
-    <Image
-      src={url}
-      alt={companyId.charAt(0).toUpperCase() + companyId.slice(1)}
-      width={w}
-      height={h}
-      className={`select-none ${isWhiteLogo ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" : "brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"} ${className || ""}`}
-      style={{ maxHeight: `${h}px`, ...style, width: "auto", height: "auto" }}
-    />
+    <div className={`relative ${className || ""}`} style={{ width: w, height: h, ...style }}>
+      <Image
+        src={url}
+        alt={companyId.charAt(0).toUpperCase() + companyId.slice(1)}
+        fill
+        sizes={`${w}px`}
+        priority={priority}
+        className={`select-none object-contain ${isWhiteLogo ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]" : "brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"}`}
+      />
+    </div>
   );
 }
