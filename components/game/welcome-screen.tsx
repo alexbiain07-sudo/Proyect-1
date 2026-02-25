@@ -85,6 +85,10 @@ export function WelcomeScreen() {
   const [miniLeaderboard, setMiniLeaderboard] = useState<MiniEntry[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<"checking" | "google" | "local">("checking");
+  const [showLocalForm, setShowLocalForm] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formError, setFormError] = useState("");
   const authChecked = useRef(false);
 
   // Check if Google OAuth is configured on mount
@@ -209,38 +213,72 @@ export function WelcomeScreen() {
   }, [fetchMiniLeaderboard]);
 
   /**
-   * Handles the sign-in action.
-   * - If Google OAuth is configured: redirects to /api/auth/google
-   * - If not: creates a local guest user and proceeds immediately
+   * Handles the main CTA button:
+   * - Google mode: redirect to OAuth
+   * - Local mode: show name+email form
    */
   const handleGoogleSignIn = useCallback(async () => {
     if (authState !== "idle" || !selectedCo) return;
     selectCompany(selectedCo);
-    setAuthState("signing-in");
 
     if (authMode === "google") {
-      // Redirect to our simple OAuth route — the page will reload after
+      setAuthState("signing-in");
       window.location.href = "/api/auth/google";
       return;
     }
 
-    // Local fallback flow: create a guest user
-    await new Promise((r) => setTimeout(r, 800));
-    const guestId = `guest_${Date.now()}`;
-    const guestNames = ["Piloto", "Corredor", "Conductor", "Velocista", "Crack"];
-    const guestName = guestNames[Math.floor(Math.random() * guestNames.length)];
+    // Local mode: show the name+email form instead of creating a random guest
+    setShowLocalForm(true);
+  }, [authState, authMode, selectedCo, selectCompany]);
+
+  /**
+   * Handles the local form submission — captures real name + email.
+   */
+  const handleLocalFormSubmit = useCallback(async () => {
+    const trimmedName = formName.trim();
+    const trimmedEmail = formEmail.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      setFormError("Ingresa tu nombre (minimo 2 caracteres)");
+      return;
+    }
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setFormError("Ingresa un email valido");
+      return;
+    }
+
+    setFormError("");
+    setAuthState("signing-in");
+
+    const userId = `user_${Date.now()}`;
+    const initials = trimmedName.split(" ").map((n) => n.charAt(0)).join("").toUpperCase().slice(0, 2);
     const user: AuthUser = {
-      id: guestId,
-      name: guestName,
-      email: "",
-      avatar: guestName.charAt(0),
+      id: userId,
+      name: trimmedName,
+      email: trimmedEmail,
+      avatar: initials,
     };
-    setUserName(guestName);
-    setUserEmail("");
+
+    // Save to leads API
+    fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: trimmedName,
+        email: trimmedEmail,
+        googleId: userId,
+        avatar: initials,
+      }),
+    }).catch(() => {});
+
+    await new Promise((r) => setTimeout(r, 600));
+    setUserName(trimmedName.split(" ")[0]);
+    setUserEmail(trimmedEmail);
     setUser(user);
+    setShowLocalForm(false);
     setAuthState("welcome-toast");
-    setTimeout(() => setScreen("select"), 1800);
-  }, [authState, authMode, selectedCo, selectCompany, setUser, setScreen]);
+    setTimeout(() => setScreen("select"), 2000);
+  }, [formName, formEmail, setUser, setScreen]);
 
   const isLoading = authState === "signing-in" || authState === "saving" || authState === "sending-email";
   const activeCompany = companies.find((c) => c.id === selectedCo);
@@ -559,9 +597,9 @@ export function WelcomeScreen() {
           )}
         </AnimatePresence>
 
-        {/* CTA - Google Sign In */}
+        {/* CTA - Sign In (Google or Local Form) */}
         <AnimatePresence>
-          {phase === "ready" && authState !== "welcome-toast" && selectedCo && (
+          {phase === "ready" && authState !== "welcome-toast" && selectedCo && !showLocalForm && (
             <motion.div
               className="flex flex-col items-center mt-8 w-full"
               initial={{ opacity: 0, y: 25 }}
@@ -601,16 +639,18 @@ export function WelcomeScreen() {
                       transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
                     />
                     <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-                      {authState === "signing-in" && (authMode === "google" ? "Conectando con Google..." : "Preparando...")}
-                      {authState === "saving" && "Registrando tu cuenta..."}
-                      {authState === "sending-email" && "Enviando bienvenida..."}
+                      Conectando con Google...
                     </span>
                   </div>
                 ) : (
                   <>
-                    {authMode === "google" && <GoogleIcon className="w-5 h-5 relative z-10" />}
+                    {authMode === "google" ? (
+                      <GoogleIcon className="w-5 h-5 relative z-10" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 relative z-10" style={{ color: "rgba(255,255,255,0.6)" }} />
+                    )}
                     <span className="relative z-10 text-sm font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.85)" }}>
-                      {authMode === "google" ? `Jugar con ${activeCompany?.name}` : `Jugar con ${activeCompany?.name}`}
+                      {authMode === "google" ? `Ingresar con Google` : `Jugar con ${activeCompany?.name}`}
                     </span>
                   </>
                 )}
@@ -652,7 +692,7 @@ export function WelcomeScreen() {
                 >
                   {authMode === "google"
                     ? `Al continuar, inicias sesion con tu cuenta de Google para ${activeCompany?.name}. Tu informacion se mantiene segura y privada.`
-                    : `Al continuar, accedes a la experiencia de ${activeCompany?.name}.`
+                    : `Ingresa tus datos para participar en el ranking de ${activeCompany?.name}.`
                   }
                 </motion.p>
               )}
@@ -660,9 +700,103 @@ export function WelcomeScreen() {
           )}
         </AnimatePresence>
 
+        {/* Local Name+Email Form (when Google is not configured) */}
+        <AnimatePresence>
+          {showLocalForm && authState !== "welcome-toast" && (
+            <motion.div
+              className="flex flex-col items-center mt-6 w-full gap-3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4 }}
+            >
+              <p className="text-[11px] tracking-[0.1em] uppercase mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Ingresa tus datos para jugar
+              </p>
+              <input
+                type="text"
+                placeholder="Tu nombre"
+                value={formName}
+                onChange={(e) => { setFormName(e.target.value); setFormError(""); }}
+                disabled={isLoading}
+                className="w-full px-4 py-3 text-sm rounded-lg outline-none placeholder:text-white/20 disabled:opacity-50"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.85)",
+                }}
+                autoFocus
+              />
+              <input
+                type="email"
+                placeholder="Tu email"
+                value={formEmail}
+                onChange={(e) => { setFormEmail(e.target.value); setFormError(""); }}
+                disabled={isLoading}
+                onKeyDown={(e) => { if (e.key === "Enter") handleLocalFormSubmit(); }}
+                className="w-full px-4 py-3 text-sm rounded-lg outline-none placeholder:text-white/20 disabled:opacity-50"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.85)",
+                }}
+              />
+              {formError && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-[10px]"
+                  style={{ color: "#ff6b6b" }}
+                >
+                  {formError}
+                </motion.p>
+              )}
+              <motion.button
+                onClick={handleLocalFormSubmit}
+                disabled={isLoading}
+                className="relative w-full flex items-center justify-center gap-3 px-6 py-3.5 cursor-pointer overflow-hidden disabled:cursor-not-allowed mt-1"
+                style={{
+                  background: isLoading
+                    ? "rgba(255,255,255,0.06)"
+                    : `linear-gradient(135deg, ${activeCompany?.accentColor}25, rgba(255,255,255,0.1))`,
+                  border: `1px solid ${activeCompany?.accentColor}40`,
+                  borderRadius: "12px",
+                }}
+                whileHover={!isLoading ? { scale: 1.02 } : {}}
+                whileTap={!isLoading ? { scale: 0.97 } : {}}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      className="w-5 h-5 rounded-full border-2 border-t-transparent"
+                      style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "transparent" }}
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                    />
+                    <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+                      Registrando...
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.9)" }}>
+                    Comenzar a jugar
+                  </span>
+                )}
+              </motion.button>
+              <button
+                onClick={() => setShowLocalForm(false)}
+                className="text-[10px] mt-1 cursor-pointer"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                Volver
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Hint when no company selected */}
         <AnimatePresence>
-          {phase === "ready" && !selectedCo && authState === "idle" && (
+          {phase === "ready" && !selectedCo && authState === "idle" && !showLocalForm && (
             <motion.p
               className="text-[10px] tracking-[0.15em] uppercase text-center mt-8"
               style={{ color: "rgba(255,255,255,0.18)" }}
