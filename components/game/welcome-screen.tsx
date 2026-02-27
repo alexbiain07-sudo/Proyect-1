@@ -110,44 +110,50 @@ export function WelcomeScreen() {
 
   // On mount: check for Google OAuth callback cookie (set by /api/auth/google/callback)
   useEffect(() => {
-    if (isAuthenticated) return;
-    try {
-      const cookies = document.cookie.split(";").map((c) => c.trim());
-      const userCookie = cookies.find((c) => c.startsWith("meucci_user="));
-      if (userCookie) {
-        const jsonStr = decodeURIComponent(userCookie.split("=").slice(1).join("="));
-        const userData = JSON.parse(jsonStr) as AuthUser;
-        if (userData.id && userData.name) {
-          const storedCo = sessionStorage.getItem("meucci_selected_company") as CompanyId | null;
-          if (storedCo) {
-            setSelectedCo(storedCo);
-            selectCompany(storedCo);
-          }
-          setUserName(userData.name.split(" ")[0]);
-          setUserEmail(userData.email);
-          setUser(userData);
+  if (isAuthenticated) return;
 
-          // Save to leads API
-          fetch("/api/leads", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              nombre: userData.name,
-              email: userData.email,
-              googleId: userData.id,
-              avatar: userData.avatar,
-            }),
-          }).catch(() => {});
+  try {
+    const cookies = document.cookie.split(";").map((c) => c.trim());
+    const userCookie = cookies.find((c) => c.startsWith("meucci_user="));
 
-          setAuthState("welcome-toast");
-          setTimeout(() => setScreen("select"), 2200);
-        }
-      }
-    } catch {
-      // Cookie parsing failed — continue normally
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!userCookie) return;
+
+    const jsonStr = decodeURIComponent(
+      userCookie.split("=").slice(1).join("=")
+    );
+
+    const userData = JSON.parse(jsonStr) as AuthUser;
+
+    if (!userData?.id || !userData?.name) return;
+
+    // 🔹 Set user ONLY once
+    setUserName(userData.name.split(" ")[0]);
+    setUserEmail(userData.email);
+    setUser(userData);
+
+    // 
+    document.cookie =
+      "meucci_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    // Guardar lead (una sola vez)
+    fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: userData.name,
+        email: userData.email,
+        googleId: userData.id,
+        avatar: userData.avatar,
+      }),
+    }).catch(() => {});
+
+    setAuthState("welcome-toast");
+    setTimeout(() => setScreen("select"), 2000);
+  } catch {
+    // ignore
+  }
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // Persist selectedCo to sessionStorage so it survives the OAuth redirect
   useEffect(() => {
