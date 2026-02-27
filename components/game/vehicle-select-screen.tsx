@@ -194,7 +194,19 @@ export function VehicleSelectScreen() {
                   color: "rgba(255,255,255,0.6)",
                 }}
               >
-                {user.avatar}
+                {user.avatar && String(user.avatar).startsWith("http") ? (
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src={user.avatar}
+    alt={user.name ? `Avatar de ${user.name}` : "Avatar"}
+    className="w-full h-full object-cover"
+    referrerPolicy="no-referrer"
+  />
+) : (
+  <span>
+    {(user.name?.[0] || user.email?.[0] || "U").toUpperCase()}
+  </span>
+)}
               </div>
             )}
             {user && (
