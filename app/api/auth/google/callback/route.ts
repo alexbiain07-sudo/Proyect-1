@@ -1,29 +1,30 @@
 import { NextResponse } from "next/server";
 
-/**
- * GET /api/auth/google/ callback
- * Handles the OAuth2 callback from Google.
- * Exchanges the code for tokens, fetches user info,
- * and redirects back to the app with user data in a cookie.
- */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get("code");
-  const baseUrl = process.env.NEXTAUTH_URL || new URL(request.url).origin;
 
-  if (!code) {
-    return NextResponse.redirect(`${baseUrl}/?auth_error=no_code`);
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const error = url.searchParams.get("error");
+
+  
+  const baseUrl =
+    (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.replace(/\/$/, "")) ||
+    `${url.protocol}//${url.host}`;
+
+  // Si Google devolvió error o no vino code, volver al home limpio
+  if (error || !code) {
+    return NextResponse.redirect(`${baseUrl}/`);
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(`${baseUrl}/?auth_error=not_configured`);
+    return NextResponse.redirect(`${baseUrl}/`);
   }
 
   try {
-    // Exchange authorization code for tokens
+    // 1) Intercambio code -> tokens
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -37,23 +38,22 @@ export async function GET(request: Request) {
     });
 
     if (!tokenRes.ok) {
-      return NextResponse.redirect(`${baseUrl}/?auth_error=token_exchange_failed`);
+      return NextResponse.redirect(`${baseUrl}/`);
     }
 
     const tokens = await tokenRes.json();
 
-    // Fetch user info from Google
+    // 2) userinfo
     const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
     if (!userRes.ok) {
-      return NextResponse.redirect(`${baseUrl}/?auth_error=user_info_failed`);
+      return NextResponse.redirect(`${baseUrl}/`);
     }
 
     const googleUser = await userRes.json();
 
-    // Build our AuthUser data
     const userData = {
       id: googleUser.id || "",
       name: googleUser.name || "",
@@ -61,18 +61,20 @@ export async function GET(request: Request) {
       avatar: googleUser.picture || "",
     };
 
-    // Set a cookie with user data (URL-encoded JSON, HttpOnly for security)
-    const response = NextResponse.redirect(`${baseUrl}/?auth_success=1`);
+    // 3) Redirección limpia (sin querystring)
+    const response = NextResponse.redirect(`${baseUrl}/`);
+
+    // 4) Cookie para que el cliente sepa que está logueado
     response.cookies.set("meucci_user", JSON.stringify(userData), {
-      httpOnly: false, // Client needs to read it
+      httpOnly: false, // tu front lo lee (si después querés mejorar, lo hacemos httpOnly y agregamos /api/me)
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
       path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 días
     });
 
     return response;
   } catch {
-    return NextResponse.redirect(`${baseUrl}/?auth_error=unexpected`);
+    return NextResponse.redirect(`${baseUrl}/`);
   }
 }
