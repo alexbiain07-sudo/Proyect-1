@@ -10,6 +10,24 @@ import { Trophy, Crown, Star, Award, Target, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { GrupoMeucciLogo, CompanyLogo } from "@/components/ui/brand-logo";
 
+function getOrCreateSessionId() {
+  let sid = localStorage.getItem("game_session_id");
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem("game_session_id", sid);
+  }
+  return sid;
+}
+
+function getOrCreateSessionStartedAt() {
+  let startedAt = localStorage.getItem("game_session_started_at");
+  if (!startedAt) {
+    startedAt = new Date().toISOString();
+    localStorage.setItem("game_session_started_at", startedAt);
+  }
+  return startedAt;
+}
+
 /* ---- Mini Leaderboard Data ---- */
 interface MiniEntry {
   id: string;
@@ -131,21 +149,29 @@ export function WelcomeScreen() {
     setUserEmail(userData.email);
     setUser(userData);
 
-    // 
     document.cookie =
       "meucci_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-
+    
+    // Reset session al iniciar una nueva partida (Google)
+    localStorage.removeItem("game_session_id");
+    localStorage.removeItem("game_session_started_at");
+    
     // Guardar lead (una sola vez)
+    const session_id = getOrCreateSessionId();
+    const session_started_at = getOrCreateSessionStartedAt();
+
     fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: userData.name,
-        email: userData.email,
-        googleId: userData.id,
-        avatar: userData.avatar,
-      }),
-    }).catch(() => {});
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    session_id,
+    session_started_at,
+    nombre: userData.name,
+    email: userData.email,
+    googleId: userData.id,
+    avatar: userData.avatar,
+  }),
+}).catch(() => {});
 
     setAuthState("welcome-toast");
     setTimeout(() => setScreen("select"), 2000);
@@ -252,6 +278,8 @@ export function WelcomeScreen() {
       setFormError("Ingresa un email valido");
       return;
     }
+    localStorage.removeItem("game_session_id");
+    localStorage.removeItem("game_session_started_at");
 
     setFormError("");
     setAuthState("signing-in");
@@ -264,18 +292,23 @@ export function WelcomeScreen() {
       email: trimmedEmail,
       avatar: initials,
     };
+    
+// Save to leads API
+const session_id = getOrCreateSessionId();
+const session_started_at = getOrCreateSessionStartedAt();
 
-    // Save to leads API
-    fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre: trimmedName,
-        email: trimmedEmail,
-        googleId: userId,
-        avatar: initials,
-      }),
-    }).catch(() => {});
+fetch("/api/leads", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    session_id,
+    session_started_at,
+    nombre: trimmedName,
+    email: trimmedEmail,
+    googleId: userId,
+    avatar: initials,
+  }),
+}).catch(() => {});
 
     await new Promise((r) => setTimeout(r, 600));
     setUserName(trimmedName.split(" ")[0]);
