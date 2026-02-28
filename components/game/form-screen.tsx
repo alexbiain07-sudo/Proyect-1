@@ -43,29 +43,51 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setIsSubmitting(true);
-    try {
-      await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          googleId: user?.id || "",
-          avatar: user?.avatar || "",
-          vehiculoInteres: selectedVehicle?.name || "",
-          vehiculoId: selectedVehicle?.id || "",
-          puntajeJuego: currentScore,
-          nivelConductor: driverProfile?.title || "",
-        }),
-      });
-    } catch {
-      // Silently handle - form still transitions to success
-    }
-    submitForm();
-    setIsSubmitting(false);
-  };
+  e.preventDefault();
+  if (!validateForm()) return;
+  setIsSubmitting(true);
+
+  try {
+    // recuperar la sesión creada en WelcomeScreen
+    let session_id = localStorage.getItem("game_session_id") || "";
+    let session_started_at = localStorage.getItem("game_session_started_at") || "";
+
+// Fallback de seguridad (por si algo raro pasa)
+      if (!session_id) {
+        session_id = crypto.randomUUID();
+        session_started_at = new Date().toISOString();
+        localStorage.setItem("game_session_id", session_id);
+        localStorage.setItem("game_session_started_at", session_started_at);
+}
+
+    await fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id,
+        session_started_at,
+
+        ...formData,
+        googleId: user?.id || "",
+        avatar: user?.avatar || "",
+        vehiculoInteres: selectedVehicle?.name || "",
+        vehiculoId: selectedVehicle?.id || "",
+        puntajeJuego: currentScore,
+        nivelConductor: driverProfile?.title || "",
+      }),
+    });
+  } catch {
+    // Silently handle - form still transitions to success
+  }
+
+  submitForm();
+
+  // ✅ cerrar la sesión del juego
+  localStorage.removeItem("game_session_id");
+  localStorage.removeItem("game_session_started_at");
+
+  setIsSubmitting(false);
+};
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
