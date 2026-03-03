@@ -148,7 +148,13 @@ export function WelcomeScreen() {
     setUserName(userData.name.split(" ")[0]);
     setUserEmail(userData.email);
     setUser(userData);
-
+    // 🔑 Rehidratar empresa seleccionada después de OAuth
+const stored = sessionStorage.getItem("meucci_selected_company");
+if (stored) {
+  const co = stored as CompanyId;
+  setSelectedCo(co);
+  selectCompany(co);
+}
     document.cookie =
       "meucci_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     
@@ -189,12 +195,14 @@ export function WelcomeScreen() {
   }, [selectedCo]);
 
   // Restore selectedCo after OAuth redirect
-  useEffect(() => {
-    const stored = sessionStorage.getItem("meucci_selected_company");
-    if (stored && !selectedCo) {
-      setSelectedCo(stored as CompanyId);
-    }
-  }, [selectedCo]);
+useEffect(() => {
+  const stored = sessionStorage.getItem("meucci_selected_company");
+  if (stored && !selectedCo) {
+    const co = stored as CompanyId;
+    setSelectedCo(co);
+    selectCompany(co); 
+  }
+}, [selectedCo, selectCompany]);
 
   // Fetch real leaderboard from API and poll for updates
   const fetchMiniLeaderboard = useCallback(async () => {
