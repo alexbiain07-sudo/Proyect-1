@@ -36,12 +36,29 @@ const BADGE_LABELS: Record<string, string> = {
  * Returns a Blob of the rendered PNG.
  */
 export async function generateShareImage(data: ShareData): Promise<Blob> {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+    throw new Error("generateShareImage can only run in the browser");
+  }
   const W = 1080;
   const H = 1920;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+     if (!ctx) throw new Error("Canvas 2D context not available");
+
+ // Polyfill roundRect si el navegador no lo soporta
+     if (typeof (ctx as any).roundRect !== "function") {
+       (ctx as any).roundRect = function (
+         x: number,
+         y: number,
+         w: number,
+         h: number,
+         r?: number
+   ) {
+     this.rect(x, y, w, h);
+  };
+}
 
   // -- Background gradient
   const grad = ctx.createLinearGradient(0, 0, W * 0.3, H);
@@ -183,13 +200,19 @@ export async function generateShareImage(data: ShareData): Promise<Blob> {
   ctx.letterSpacing = "8px";
   ctx.fillText("MEUCCI AUTOMOTORES", W / 2, H - 80);
 
-  return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => resolve(blob!),
-      "image/png",
-      1
-    );
-  });
+  return new Promise((resolve, reject) => {
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) {
+        reject(new Error("Failed to generate image blob"));
+        return;
+      }
+      resolve(blob);
+    },
+    "image/png",
+    1
+  );
+});
 }
 
 /**
@@ -197,7 +220,11 @@ export async function generateShareImage(data: ShareData): Promise<Blob> {
  */
 export async function shareToInstagram(data: ShareData, fallbackText: string): Promise<"shared" | "copied" | "failed"> {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
+  
+  if (typeof window === "undefined" || typeof document === "undefined") {
+  return "failed";
+  }
+  
   try {
     // Generate the branded image
     const blob = await generateShareImage(data);
@@ -213,14 +240,29 @@ export async function shareToInstagram(data: ShareData, fallbackText: string): P
       return "shared";
     }
 
-    // Mobile fallback: copy text and open Instagram
+    // Mobile fallback: copy text and try open Instagram app, else web
     if (isMobile) {
-      await navigator.clipboard.writeText(fallbackText);
+      try {
+          await navigator.clipboard.writeText(fallbackText);
+          } catch {
+          // no-op
+          }
+
+    // Intento abrir la app sin navegar fuera de la página
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = "instagram://story-camera";
+      document.body.appendChild(iframe);
+
       setTimeout(() => {
-        window.location.href = "instagram://story-camera";
-      }, 300);
-      return "copied";
-    }
+        try {
+              document.body.removeChild(iframe);
+              } catch {}
+              window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+              }, 700);
+
+              return "copied";
+}
 
     // Desktop fallback: copy text to clipboard
     await navigator.clipboard.writeText(fallbackText);
@@ -254,9 +296,10 @@ export function shareToFacebook(ogParams: {
   const ogUrl = `${baseUrl}/api/og?name=${encodeURIComponent(ogParams.name)}&score=${ogParams.score}&title=${encodeURIComponent(ogParams.title)}&badge=${ogParams.badge}&vehicle=${encodeURIComponent(ogParams.vehicle)}`;
 
   // The share URL is the main page — Facebook will pick up the OG tags
-  const shareUrl = baseUrl;
+  const shareUrl = ogUrl;
   const text = `${ogParams.name} es ${ogParams.title} con ${ogParams.score.toLocaleString()} pts! Podes superarme?`;
   const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(text)}`;
 
   window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=400");
 }
+
