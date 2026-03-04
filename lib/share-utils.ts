@@ -303,3 +303,36 @@ export function shareToFacebook(ogParams: {
   window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=400");
 }
 
+export function createShareId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    // @ts-ignore
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+type BuildTrackedUrlArgs = {
+  channel: "w" | "f";
+  share_id: string;
+  uid?: string;
+  sid?: string;
+  score?: number;
+};
+
+export function buildTrackedUrl({ channel, share_id, uid, sid, score }: BuildTrackedUrlArgs): string {
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const url = new URL(`/r/${channel}`, baseUrl || "http://localhost:3000");
+
+  url.searchParams.set("share_id", share_id);
+  if (uid) url.searchParams.set("uid", uid);
+  if (sid) url.searchParams.set("sid", sid);
+  if (typeof score === "number") url.searchParams.set("score", String(score));
+
+  return url.toString();
+}
+
+export function shareToWhatsApp(message: string, trackedUrl: string): void {
+  const text = `${message} ${trackedUrl}`;
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(waUrl, "_blank", "noopener,noreferrer");
+}
