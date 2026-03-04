@@ -2,7 +2,7 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies } from "@/lib/game-data";
-import { shareToInstagram, shareToFacebook } from "@/lib/share-utils";
+import { shareToInstagram, shareToFacebook, shareToWhatsApp, buildTrackedUrl } from "@/lib/share-utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Trophy, Zap, MapPin, Crown, Star, Award, Target, Copy, Check, Share2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -136,20 +136,30 @@ export function GameOverScreen() {
   }), [user, currentScore, driverProfile, selectedVehicle]);
 
   const getShareText = useCallback(() => {
-    const userName = user?.name.split(" ")[0] || "Un conductor";
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    return `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?\n\n${url}`;
-  }, [user, driverProfile, currentScore, selectedVehicle]);
+  const userName = user?.name.split(" ")[0] || "Un conductor";
+
+  return `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?`;
+}, [user, driverProfile, currentScore, selectedVehicle]);
 
   const handleShareFacebook = useCallback(() => {
+    const trackedUrl = buildTrackedUrl({ channel: "f" });
+
     shareToFacebook({
       name: shareData.userName,
       score: shareData.score,
       title: shareData.title,
       badge: shareData.badge,
       vehicle: `${shareData.vehicleBrand} ${shareData.vehicleName}`,
+      url: trackedUrl
     });
   }, [shareData]);
+
+  const handleShareWhatsApp = useCallback(() => {
+    const trackedUrl = buildTrackedUrl({ channel: "w" });
+    const message = getShareText();
+
+    shareToWhatsApp(message, trackedUrl);
+  }, [getShareText]);
 
   const handleShareInstagram = useCallback(async () => {
     setShareState("generating");
@@ -509,6 +519,21 @@ export function GameOverScreen() {
             FACEBOOK
           </button>
 
+          <button
+            onClick={handleShareWhatsApp}
+            className="flex-1 py-3 rounded-xl font-bebas text-xs tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] touch-manipulation"
+            style={{
+              background: "rgba(37,211,102,0.1)",
+              border: "1px solid rgba(37,211,102,0.2)",
+              color: "rgba(37,211,102,0.9)",
+            }}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.198.297-.768.967-.941 1.165-.174.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.174-.297-.019-.458.13-.607.134-.133.297-.347.446-.521.149-.174.198-.298.297-.496.099-.198.05-.372-.025-.521-.075-.149-.669-1.611-.916-2.206-.242-.579-.487-.5-.67-.51l-.571-.01c-.198 0-.52.074-.792.372-.273.297-1.04 1.016-1.04 2.479s1.065 2.875 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.262.489 1.693.626.711.226 1.358.194 1.87.118.571-.085 1.758-.718 2.006-1.413.248-.694.248-1.29.174-1.413-.075-.124-.273-.198-.571-.347z"/>
+            </svg>
+            WHATSAPP
+          </button>
+          
           <button
             onClick={handlePlayAgain}
             className="flex-1 py-3 rounded-xl font-bebas text-xs tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] touch-manipulation"
