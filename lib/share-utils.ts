@@ -285,19 +285,17 @@ export async function shareToInstagram(data: ShareData, fallbackText: string): P
 /**
  * Share to Facebook with the OG image URL for rich link previews.
  */
-export function shareToFacebook(ogParams: {
+export function shareToFacebook(params: {
   name: string;
   score: number;
   title: string;
   badge: string;
   vehicle: string;
+  trackedUrl: string;
 }): void {
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const ogUrl = `${baseUrl}/api/og?name=${encodeURIComponent(ogParams.name)}&score=${ogParams.score}&title=${encodeURIComponent(ogParams.title)}&badge=${ogParams.badge}&vehicle=${encodeURIComponent(ogParams.vehicle)}`;
 
-  // The share URL is the main page — Facebook will pick up the OG tags
-  const shareUrl = ogUrl;
-  const text = `${ogParams.name} es ${ogParams.title} con ${ogParams.score.toLocaleString()} pts! Podes superarme?`;
+  const shareUrl = params.trackedUrl;
+  const text = `${params.name} es ${params.title} con ${params.score.toLocaleString()} pts! Podes superarme?`;
   const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(text)}`;
 
   window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=400");
