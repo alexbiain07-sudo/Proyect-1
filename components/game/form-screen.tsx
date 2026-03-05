@@ -9,6 +9,14 @@ import { useState } from "react";
 import Image from "next/image";
 import { GrupoMeucciLogo } from "@/components/ui/brand-logo";
 
+function getCookie(name: string) {
+  if (typeof document === "undefined") return undefined;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift();
+  return undefined;
+}
+
 interface FormData {
   nombre: string;
   email: string;
@@ -43,6 +51,9 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+  const ref_share_id = getCookie("meucci_ref");
+  const ref_channel = getCookie("meucci_ref_channel");
+    
   e.preventDefault();
   if (!validateForm()) return;
   setIsSubmitting(true);
@@ -52,7 +63,7 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
     let session_id = localStorage.getItem("game_session_id") || "";
     let session_started_at = localStorage.getItem("game_session_started_at") || "";
 
-// Fallback de seguridad (por si algo raro pasa)
+    // Fallback de seguridad (por si algo raro pasa)
       if (!session_id) {
         session_id = crypto.randomUUID();
         session_started_at = new Date().toISOString();
@@ -64,17 +75,21 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        session_id,
-        session_started_at,
+      session_id,
+      session_started_at,
+      company: selectedCompany,
+  
+  ref_share_id: ref_share_id ?? "",
+  ref_channel: ref_channel ?? "",
 
-        ...formData,
-        googleId: user?.id || "",
-        avatar: user?.avatar || "",
-        vehiculoInteres: selectedVehicle?.name || "",
-        vehiculoId: selectedVehicle?.id || "",
-        puntajeJuego: currentScore,
-        nivelConductor: driverProfile?.title || "",
-      }),
+  ...formData,
+  googleId: user?.id || "",
+  avatar: user?.avatar || "",
+  vehiculoInteres: selectedVehicle?.name || "",
+  vehiculoId: selectedVehicle?.id || "",
+  puntajeJuego: currentScore,
+  nivelConductor: driverProfile?.title || "",
+}),
     });
   } catch {
     // Silently handle - form still transitions to success
@@ -82,7 +97,6 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
 
   submitForm();
 
-  // ✅ cerrar la sesión del juego
   localStorage.removeItem("game_session_id");
   localStorage.removeItem("game_session_started_at");
 
