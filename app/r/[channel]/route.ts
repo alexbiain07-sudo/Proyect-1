@@ -48,5 +48,27 @@ export async function GET(req: NextRequest, { params }: { params: { channel: str
   if (sid) dest.searchParams.set("sid", sid);
   if (score) dest.searchParams.set("score", score);
 
-  return NextResponse.redirect(dest.toString(), 302);
+  const res = NextResponse.redirect(dest.toString(), 302);
+
+
+if (share_id) {
+  res.cookies.set("meucci_ref", share_id, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 días
+    sameSite: "lax",
+    secure: true,
+    httpOnly: false, 
+  });
+}
+
+
+res.cookies.set("meucci_ref_channel", channel, {
+  path: "/",
+  maxAge: 60 * 60 * 24 * 7,
+  sameSite: "lax",
+  secure: true,
+  httpOnly: false,
+});
+
+return res;
 }
