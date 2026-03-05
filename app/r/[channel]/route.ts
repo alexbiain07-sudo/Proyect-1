@@ -6,8 +6,11 @@ const CHANNEL_MAP: Record<string, string> = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: { channel: string } }) {
-  const channel = CHANNEL_MAP[params.channel] ?? params.channel ?? "unknown";
+  const rawParam = params?.channel;
+  const rawPath = req.nextUrl.pathname.split("/").filter(Boolean)[1]; // "/r/w" -> ["r","w"] -> "w"
+  const rawChannel = rawParam ?? rawPath ?? "unknown";
 
+  const channel = CHANNEL_MAP[rawChannel] ?? rawChannel ?? "unknown";
   const sp = req.nextUrl.searchParams;
 
   const share_id = sp.get("share_id") ?? undefined;
@@ -26,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { channel: str
         event_name: "referral_visit",
         ref_session_id: share_id,
         platform: channel,
-        page: `/r/${params.channel}`,
+        page: `/r/${rawChannel}`,
         ts: new Date().toISOString(),
         meta: {
           uid,
