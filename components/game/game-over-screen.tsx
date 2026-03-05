@@ -2,7 +2,7 @@
 
 import { useGameStore } from "@/lib/game-store";
 import { companies } from "@/lib/game-data";
-import { shareToInstagram, shareToFacebook, shareToWhatsApp, buildTrackedUrl } from "@/lib/share-utils";
+import { shareToInstagram, shareToFacebook, shareToWhatsApp, buildTrackedUrl, createShareId } from "@/lib/share-utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Trophy, Zap, MapPin, Crown, Star, Award, Target, Copy, Check, Share2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -136,30 +136,49 @@ export function GameOverScreen() {
   }), [user, currentScore, driverProfile, selectedVehicle]);
 
   const getShareText = useCallback(() => {
-  const userName = user?.name.split(" ")[0] || "Un conductor";
+  const userName = user?.name?.split(" ")[0] || "Un conductor";
 
   return `${userName} es ${driverProfile?.title} con ${currentScore.toLocaleString()} pts manejando el ${selectedVehicle?.brand} ${selectedVehicle?.name}! Solo el ${100 - (driverProfile?.percentile || 0)}% alcanza este nivel. Podes superarme?`;
 }, [user, driverProfile, currentScore, selectedVehicle]);
 
   const handleShareFacebook = useCallback(() => {
-    const trackedUrl = buildTrackedUrl({ channel: "f" });
+  const share_id = createShareId();
 
-    shareToFacebook({
-      name: shareData.userName,
-      score: shareData.score,
-      title: shareData.title,
-      badge: shareData.badge,
-      vehicle: `${shareData.vehicleBrand} ${shareData.vehicleName}`,
-      url: trackedUrl
-    });
-  }, [shareData]);
+  const trackedUrl = buildTrackedUrl({
+    channel: "f",
+    share_id,
+    score: shareData.score,
+    // uid: user?.id,
+    // sid: sessionId,
+  });
+
+  shareToFacebook({
+    name: shareData.userName,
+    score: shareData.score,
+    title: shareData.title,
+    badge: shareData.badge,
+    vehicle: `${shareData.vehicleBrand} ${shareData.vehicleName}`,
+    trackedUrl,
+  });
+}, [shareData]);
 
   const handleShareWhatsApp = useCallback(() => {
-    const trackedUrl = buildTrackedUrl({ channel: "w" });
-    const message = getShareText();
 
-    shareToWhatsApp(message, trackedUrl);
-  }, [getShareText]);
+  const share_id = createShareId();
+
+  const trackedUrl = buildTrackedUrl({
+    channel: "w",
+    share_id,
+    score: shareData.score,
+    // uid: user?.id,
+    // sid: sessionId,
+  });
+
+  const message = getShareText();
+
+  shareToWhatsApp(message, trackedUrl);
+
+}, [getShareText, shareData]);
 
   const handleShareInstagram = useCallback(async () => {
     setShareState("generating");
