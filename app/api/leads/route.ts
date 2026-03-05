@@ -12,6 +12,13 @@ interface LeadEntry {
   puntajeJuego?: number;
   nivelConductor?: string;
   createdAt?: string;
+    // Tracking referral
+  ref_share_id?: string;
+  ref_channel?: string;
+
+  // Sesión/juego (si lo estás mandando desde el front)
+  session_id?: string;
+  session_started_at?: string;
 }
 
 // Utilidad para responder 500/502 prolijo
