@@ -71,7 +71,7 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
         localStorage.setItem("game_session_started_at", session_started_at);
 }
 
-    await fetch("/api/leads", {
+    const res = await fetch("/api/leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -91,6 +91,7 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
   nivelConductor: driverProfile?.title || "",
 }),
     });
+  if (!res.ok) throw new Error("Lead submission failed");
   } catch {
     // Silently handle - form still transitions to success
   }
