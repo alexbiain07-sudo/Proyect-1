@@ -413,38 +413,40 @@ export function DrivingGame() {
       onTouchEnd={handleTouchEnd}
     >
       {/* HUD */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4">
-        <div className="flex justify-between items-start max-w-[280px] mx-auto">
-          <div className="text-left">
-            <div className="text-3xl font-bebas text-white tracking-wider drop-shadow-lg">
-              {score.toLocaleString()}
-            </div>
-            <div className="text-xs text-gray-400 flex items-center gap-2">
-              <span>{Math.floor(distance)}m</span>
-              <span className="text-yellow-400">|</span>
-              <span style={{ color: accentColor }}>{speed} km/h</span>
-            </div>
-            <div className="absolute top-14 left-4 flex gap-1 z-30">
-              {Array.from({ length: lives }).map((_, i) => (
-                <span key={i} className="text-red-500 text-lg leading-none drop-shadow">
-                ❤️
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full">
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 0.5 }}
-              className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center text-[10px] font-bold text-black"
-            >
-              $
-            </motion.div>
-            <span className="text-yellow-400 font-bold">{coinsCollected}</span>
-          </div>
-        </div>
+<div className="absolute top-0 left-0 right-0 z-20 p-4">
+  <div className="flex justify-between items-start max-w-[280px] mx-auto">
+    <div className="text-left">
+      <div className="text-3xl font-bebas text-white tracking-wider drop-shadow-lg">
+        {score.toLocaleString()}
       </div>
+
+      <div className="flex gap-2 mt-1">
+        {Array.from({ length: lives }).map((_, i) => (
+          <span key={i} className="text-red-500 text-lg leading-none drop-shadow">
+            ❤️
+          </span>
+        ))}
+      </div>
+
+      <div className="text-xs text-gray-400 flex items-center gap-2 mt-1">
+        <span>{Math.floor(distance)}m</span>
+        <span className="text-yellow-400">|</span>
+        <span style={{ color: accentColor }}>{speed} km/h</span>
+      </div>
+    </div>
+
+    <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full">
+      <motion.div
+        animate={{ scale: [1, 1.2, 1] }}
+        transition={{ repeat: Infinity, duration: 0.5 }}
+        className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center text-[10px] font-bold text-black"
+      >
+        $
+      </motion.div>
+      <span className="text-yellow-400 font-bold">{coinsCollected}</span>
+    </div>
+  </div>
+</div>
 
       {/* Shield indicator */}
       <AnimatePresence>
