@@ -3,7 +3,7 @@ import type { Vehicle, CompanyId } from "./game-data";
 import type { AuthUser } from "./mock-auth";
 
 type Screen = "welcome" | "select" | "game" | "gameover" | "leaderboard" | "form" | "unlock";
-
+type LifeResult = "continue" | "unlock" | "gameover";
 export interface DriverProfile {
   title: string;
   subtitle: string;
@@ -45,7 +45,7 @@ interface GameState {
   setUser: (user: AuthUser) => void;
   selectVehicle: (vehicle: Vehicle) => void;
   updateScore: (score: number, distance: number, coins: number) => void;
-  loseLife: () => void;
+  loseLife: () => LifeResult;
   unlockExtraLives: () => void;
   addReferralBonus: () => void;
   resetGame: () => void;
@@ -105,7 +105,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         lives: 0,
         currentScreen: "unlock",
       });
-      return;
+      return "unlock";
     }
 
     if (newLives <= 0 && state.extraLivesUnlocked) {
@@ -113,10 +113,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         lives: 0,
         currentScreen: "gameover",
       });
-      return;
+      return "gameover";
     }
 
     set({ lives: newLives });
+      return "continue"
   },
     unlockExtraLives: () =>
       set({
