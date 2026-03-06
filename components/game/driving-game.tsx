@@ -33,7 +33,7 @@ interface PowerUp {
 }
 
 export function DrivingGame() {
-  const { setScreen, updateScore, selectedVehicle } = useGameStore();
+  const { updateScore, selectedVehicle, loseLife } = useGameStore();
   const vehicle = selectedVehicle || defaultVehicle;
 
   const [playerLane, setPlayerLane] = useState(1);
@@ -170,15 +170,15 @@ export function DrivingGame() {
   }, [gameStarted, gameOver, playerLane, isMoving, handling, activateNitro]);
 
   const handleGameOver = useCallback(() => {
-    if (gameOverRef.current) return;
-    gameOverRef.current = true;
-    // Defer all store mutations to avoid setState-during-render
-    requestAnimationFrame(() => {
-      setGameOver(true);
-      updateScore(scoreRef.current, Math.floor(distanceRef.current), coinsRef.current);
-      setTimeout(() => setScreen("gameover"), 1500);
-    });
-  }, [updateScore, setScreen]);
+  if (gameOverRef.current) return;
+  gameOverRef.current = true;
+  
+  requestAnimationFrame(() => {
+    setGameOver(true);
+    updateScore(scoreRef.current, Math.floor(distanceRef.current), coinsRef.current);
+    setTimeout(() => loseLife(), 1500);
+  });
+}, [updateScore, loseLife]);
 
   // Main game loop - uses refs for all game entity tracking to avoid React batching issues
   useEffect(() => {
