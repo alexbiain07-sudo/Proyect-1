@@ -31,7 +31,7 @@ interface PowerUp {
 }
 
 export function DrivingGame() {
-  const { updateScore, selectedVehicle, loseLife } = useGameStore();
+  const { updateScore, selectedVehicle, loseLife, lives } = useGameStore();
   const vehicle = selectedVehicle || defaultVehicle;
 
   const [playerLane, setPlayerLane] = useState(1);
@@ -310,24 +310,24 @@ export function DrivingGame() {
 
         // Near miss detection
         if (
-            Math.abs(playerX - obsX) < 55 &&
-            Math.abs(PLAYER_Y - newY) < 65 &&
-            Math.abs(playerX - obsX) >= hitboxX
-            ) {
+          Math.abs(playerX - obsX) < 55 &&
+          Math.abs(PLAYER_Y - newY) < 65 &&
+          Math.abs(playerX - obsX) >= hitboxX
+        ) {
+          if (!nearMissRef.current) {
+            nearMissRef.current = true;
+
             scoreRef.current += 50;
             setScore(scoreRef.current);
 
-            if (!nearMissRef.current) {
-              nearMissRef.current = true;
+            setNearMiss(true);
 
-              setNearMiss(true);
-
-              setTimeout(() => {
-                nearMissRef.current = false;
-                setNearMiss(false);
-              }, 500);
+            setTimeout(() => {
+              nearMissRef.current = false;
+              setNearMiss(false);
+            }, 500);
           }
-      }
+        }
         updatedObs.push({ ...obs, y: newY });
       }
 
@@ -424,7 +424,14 @@ export function DrivingGame() {
               <span className="text-yellow-400">|</span>
               <span style={{ color: accentColor }}>{speed} km/h</span>
             </div>
+            <div className="flex gap-1 mt-1">
+                {Array.from({ length: lives }).map((_, i) => (
+                  <span key={i} className="text-red-400 text-sm">❤️</span>
+                 ))}
+            </div>
           </div>
+
+          
 
           <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full">
             <motion.div
