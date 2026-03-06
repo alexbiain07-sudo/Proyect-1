@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Vehicle, CompanyId } from "./game-data";
 import type { AuthUser } from "./mock-auth";
 
-type Screen = "welcome" | "select" | "game" | "gameover" | "leaderboard" | "form";
+type Screen = "welcome" | "select" | "game" | "gameover" | "leaderboard" | "form" | "unlock";
 
 export interface DriverProfile {
   title: string;
@@ -32,6 +32,10 @@ interface GameState {
   coinsCollected: number;
   gamesPlayed: number;
   formSubmitted: boolean;
+  lives: number;
+  extraLivesUnlocked: boolean;
+  referralLivesUsed: number;
+  referralPointsUsed: number;
   resultVehicle: Vehicle | null;
   driverProfile: DriverProfile | null;
   dominanceIndex: number;
@@ -41,6 +45,9 @@ interface GameState {
   setUser: (user: AuthUser) => void;
   selectVehicle: (vehicle: Vehicle) => void;
   updateScore: (score: number, distance: number, coins: number) => void;
+  loseLife: () => void;
+  unlockExtraLives: () => void;
+  addReferralBonus: () => void;
   resetGame: () => void;
   submitForm: () => void;
 }
@@ -57,6 +64,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   coinsCollected: 0,
   gamesPlayed: 0,
   formSubmitted: false,
+  lives: 3,
+  extraLivesUnlocked: false,
+  referralLivesUsed: 0,
+  referralPointsUsed: 0,
   resultVehicle: null,
   driverProfile: null,
   dominanceIndex: 0,
@@ -85,15 +96,71 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  resetGame: () =>
-    set({
-      currentScore: 0,
-      distance: 0,
-      coinsCollected: 0,
-      formSubmitted: false,
-      driverProfile: null,
-      dominanceIndex: 0,
-    }),
+    loseLife: () => {
+    const state = get();
+    const newLives = state.lives - 1;
 
-  submitForm: () => set({ formSubmitted: true }),
+    if (newLives <= 0 && !state.extraLivesUnlocked) {
+      set({
+        lives: 0,
+        currentScreen: "unlock",
+      });
+      return;
+    }
+
+    if (newLives <= 0 && state.extraLivesUnlocked) {
+      set({
+        lives: 0,
+        currentScreen: "gameover",
+      });
+      return;
+    }
+
+    set({ lives: newLives });
+  },
+    unlockExtraLives: () =>
+      set({
+          extraLivesUnlocked: true,
+          lives: 3,
+          currentScreen: "game",
+    }),
+    addReferralBonus: () => {
+    const state = get();
+
+    const canAddLife = state.referralLivesUsed < 5;
+    const canAddPoints = state.referralPointsUsed < 5;
+
+    set({
+      lives: canAddLife ? state.lives + 1 : state.lives,
+      referralLivesUsed: canAddLife ? state.referralLivesUsed + 1 : state.referralLivesUsed,
+      currentScore: canAddPoints ? state.currentScore + 50 : state.currentScore,
+      referralPointsUsed: canAddPoints ? state.referralPointsUsed + 1 : state.referralPointsUsed,
+      highScore: canAddPoints
+        ? Math.max(state.highScore, state.currentScore + 50)
+        : state.highScore,
+    });
+  },
+
+    resetGame: () =>
+      set({
+        currentScreen: "select",
+        currentScore: 0,
+        distance: 0,
+        coinsCollected: 0,
+        formSubmitted: false,
+        lives: 3,
+        extraLivesUnlocked: false,
+        referralLivesUsed: 0,
+        referralPointsUsed: 0,
+        driverProfile: null,
+        dominanceIndex: 0,
+        }),
+
+    submitForm: () =>
+    set({
+      formSubmitted: true,
+      extraLivesUnlocked: true,
+      lives: 3,
+      currentScreen: "game",
+    }),
 }));
