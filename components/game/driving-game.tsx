@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react"
-
 import { vehicle as defaultVehicle } from "@/lib/game-data";
 import { useGameStore } from "@/lib/game-store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -70,6 +68,7 @@ export function DrivingGame() {
   const playerLaneRef = useRef(1);
   const comboRef = useRef(0);
   const shieldRef = useRef(false);
+  const nearMissRef = useRef(false);
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Ref-based obstacle, coin and power-up tracking for reliable collision detection
   const obstaclesRef = useRef<Obstacle[]>([]);
@@ -180,6 +179,7 @@ export function DrivingGame() {
       const result = loseLife();
 
       if (result === "continue") {
+        cancelAnimationFrame(frameRef.current);
         obstaclesRef.current = [];
         coinsDataRef.current = [];
         powerUpsDataRef.current = [];
@@ -194,6 +194,7 @@ export function DrivingGame() {
 
         setCountdown(3);
         setGameStarted(false);
+        
         return;
       }
 
@@ -309,13 +310,24 @@ export function DrivingGame() {
 
         // Near miss detection
         if (
-          Math.abs(playerX - obsX) < 55 &&
-          Math.abs(PLAYER_Y - newY) < 65 &&
-          Math.abs(playerX - obsX) >= hitboxX
-        ) {
-          scoreRef.current += 50;
-        }
+            Math.abs(playerX - obsX) < 55 &&
+            Math.abs(PLAYER_Y - newY) < 65 &&
+            Math.abs(playerX - obsX) >= hitboxX
+            ) {
+            scoreRef.current += 50;
+            setScore(scoreRef.current);
 
+            if (!nearMissRef.current) {
+              nearMissRef.current = true;
+
+              setNearMiss(true);
+
+              setTimeout(() => {
+                nearMissRef.current = false;
+                setNearMiss(false);
+              }, 500);
+          }
+      }
         updatedObs.push({ ...obs, y: newY });
       }
 
