@@ -172,13 +172,40 @@ export function DrivingGame() {
   const handleGameOver = useCallback(() => {
   if (gameOverRef.current) return;
   gameOverRef.current = true;
-  
+
   requestAnimationFrame(() => {
     setGameOver(true);
-    updateScore(scoreRef.current, Math.floor(distanceRef.current), coinsRef.current);
-    setTimeout(() => loseLife(), 1500);
+
+    setTimeout(() => {
+      const result = loseLife();
+
+      if (result === "continue") {
+        obstaclesRef.current = [];
+        coinsDataRef.current = [];
+        powerUpsDataRef.current = [];
+
+        setObstacles([]);
+        setCoins([]);
+        setPowerUps([]);
+
+        setGameOver(false);
+        gameOverRef.current = false;
+        lastTimeRef.current = 0;
+
+        setCountdown(3);
+        setGameStarted(false);
+        return;
+      }
+
+      // solo cuando la corrida termina de verdad
+      updateScore(
+        scoreRef.current,
+        Math.floor(distanceRef.current),
+        coinsRef.current
+      );
+    }, 1500);
   });
-}, [updateScore, loseLife]);
+}, [loseLife, updateScore]);
 
   // Main game loop - uses refs for all game entity tracking to avoid React batching issues
   useEffect(() => {
@@ -188,7 +215,7 @@ export function DrivingGame() {
     obstaclesRef.current = [];
     coinsDataRef.current = [];
     powerUpsDataRef.current = [];
-    let currentDistance = 0;
+    let currentDistance = distanceRef.current;
 
     const PLAYER_Y = 520;
 
