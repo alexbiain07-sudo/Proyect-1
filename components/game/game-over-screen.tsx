@@ -68,19 +68,20 @@ function PercentileBar({ value, color }: { value: number; color: string }) {
 
 export function GameOverScreen() {
   const {
-    selectedVehicle,
-    currentScore,
-    highScore,
-    distance,
-    coinsCollected,
-    gamesPlayed,
-    driverProfile,
-    dominanceIndex,
-    setScreen,
-    resetGame,
-    user,
-    selectedCompany,
-  } = useGameStore();
+  selectedVehicle,
+  currentScore,
+  highScore,
+  distance,
+  coinsCollected,
+  gamesPlayed,
+  driverProfile,
+  dominanceIndex,
+  setScreen,
+  resetGame,
+  user,
+  selectedCompany,
+  lives,
+} = useGameStore();
 
   const activeCompany = companies.find((c) => c.id === selectedCompany);
   const isNewRecord = currentScore >= highScore && currentScore > 0;
@@ -113,6 +114,11 @@ export function GameOverScreen() {
   }, []);
 
   const handlePlayAgain = () => {
+    if (lives > 0) {
+      setScreen("game");
+      return;
+    }
+
     resetGame();
     setScreen("select");
   };
