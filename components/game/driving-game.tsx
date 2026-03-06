@@ -446,31 +446,6 @@ export function DrivingGame() {
         </div>
       </div>
 
-      {/* Nitro bar */}
-      <div className="absolute top-20 left-4 right-4 z-20 max-w-[280px] mx-auto">
-        <div className="h-3 bg-gray-800/80 rounded-full overflow-hidden border border-gray-700">
-          <motion.div
-            className="h-full rounded-full relative"
-            style={{
-              backgroundColor: nitroActive ? "#00ffff" : accentColor,
-              width: `${nitroCharge}%`,
-            }}
-            animate={
-              nitroActive
-                ? { opacity: [1, 0.5, 1], boxShadow: ["0 0 10px #00ffff", "0 0 20px #00ffff"] }
-                : {}
-            }
-            transition={{ repeat: Infinity, duration: 0.2 }}
-          />
-        </div>
-        <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-gray-500">NITRO</span>
-          <span className="text-[10px]" style={{ color: accentColor }}>
-            {Math.floor(nitroCharge)}%
-          </span>
-        </div>
-      </div>
-
       {/* Shield indicator */}
       <AnimatePresence>
         {shield && (
