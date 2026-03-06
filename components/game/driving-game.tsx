@@ -424,10 +424,8 @@ export function DrivingGame() {
               <span className="text-yellow-400">|</span>
               <span style={{ color: accentColor }}>{speed} km/h</span>
             </div>
-            <div className="flex gap-1 mt-1">
-                {Array.from({ length: lives }).map((_, i) => (
-                  <span key={i} className="text-red-400 text-sm">❤️</span>
-                 ))}
+            <div className="mt-1 text-white text-xs bg-red-500/20 px-2 py-1 rounded">
+              VIDAS: {String(lives)}
             </div>
           </div>
 
