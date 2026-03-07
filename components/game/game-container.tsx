@@ -8,6 +8,7 @@ import { GameOverScreen } from "./game-over-screen";
 import { VehicleSelectScreen } from "./vehicle-select-screen";
 import { LeaderboardScreen } from "./leaderboard-screen";
 import { WelcomeScreen } from "./welcome-screen";
+import { UnlockScreen } from "./unlock-screen";
 
 export function GameContainer() {
   const { currentScreen } = useGameStore();
@@ -22,6 +23,7 @@ export function GameContainer() {
           {currentScreen === "gameover" && <GameOverScreen key="gameover" />}
           {currentScreen === "leaderboard" && <LeaderboardScreen key="leaderboard" />}
           {currentScreen === "form" && <FormScreen key="form" />}
+          {currentScreen === "unlock" && <UnlockScreen key="unlock" />}
         </AnimatePresence>
       </div>
     </div>
