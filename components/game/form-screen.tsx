@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
 import { useGameStore } from "@/lib/game-store";
 import { companies } from "@/lib/game-data";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, Loader2, Unlock, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { GrupoMeucciLogo } from "@/components/ui/brand-logo";
 
@@ -24,7 +23,7 @@ interface FormData {
 }
 
 export function FormScreen() {
-const { selectedVehicle, currentScore, driverProfile, setScreen, submitForm, formSubmitted, resetGame, user, selectedCompany } =
+const { selectedVehicle, currentScore, driverProfile, setScreen, submitForm, formSubmitted, user, selectedCompany } =
   useGameStore();
 const activeCompany = companies.find((c) => c.id === selectedCompany);
   const [formData, setFormData] = useState<FormData>({
@@ -36,7 +35,15 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
   const [errors, setErrors] = useState<Partial<FormData>>({});
 
   const accentColor = selectedVehicle?.accentColor || "#FF7800";
+  useEffect(() => {
+  if (formSubmitted) {
+    const timer = setTimeout(() => {
+      setScreen("game");
+    }, 1000);
 
+    return () => clearTimeout(timer);
+  }
+}, [formSubmitted, setScreen]);
   const validateForm = (): boolean => {
     const newErrors: Partial<FormData> = {};
     if (!formData.nombre.trim()) newErrors.nombre = "Ingresa tu nombre";
@@ -113,63 +120,42 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
   };
 
   if (formSubmitted) {
-    return (
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen flex flex-col items-center justify-center px-6 py-8"
+      style={{
+        background: "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
+      }}
+    >
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="min-h-screen flex flex-col items-center justify-center px-6 py-8"
-        style={{
-          background: "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
-        }}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="text-center"
       >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200 }}
-          className="w-24 h-24 rounded-full flex items-center justify-center mb-6"
+        <div
+          className="w-20 h-20 rounded-full flex items-center justify-center mb-5 mx-auto"
           style={{
             background: `linear-gradient(135deg, ${accentColor}20, ${accentColor}05)`,
             border: `2px solid ${accentColor}30`,
           }}
         >
-          <CheckCircle2 className="w-12 h-12" style={{ color: accentColor }} />
-        </motion.div>
+          <CheckCircle2 className="w-10 h-10" style={{ color: accentColor }} />
+        </div>
 
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-center"
-        >
-          <h2 className="font-bebas text-4xl tracking-[0.15em] mb-3" style={{ color: "#ece6e1" }}>
-            PROPUESTA DESBLOQUEADA
-          </h2>
-          <p className="text-sm mb-8 max-w-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
-            Muy pronto un asesor de {activeCompany?.name || "Grupo Meucci"} se pondra en contacto para presentarte tu propuesta exclusiva del{" "}
-            <span className="font-semibold" style={{ color: accentColor }}>
-              {selectedVehicle?.brand} {selectedVehicle?.name}
-            </span>
-            .
-          </p>
+        <h2 className="font-bebas text-3xl tracking-[0.15em] mb-2" style={{ color: "#ece6e1" }}>
+          +3 VIDAS DESBLOQUEADAS
+        </h2>
 
-          <button
-            onClick={() => {
-              resetGame();
-              setScreen("select");
-            }}
-            className="py-3 px-8 rounded-xl font-bebas tracking-[0.15em] transition-all active:scale-[0.97] touch-manipulation"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.7)",
-            }}
-          >
-            SEGUIR JUGANDO
-          </button>
-        </motion.div>
+        <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+          Volviendo al juego...
+        </p>
       </motion.div>
-    );
-  }
+    </motion.div>
+  );
+}
 
   return (
     <motion.div
