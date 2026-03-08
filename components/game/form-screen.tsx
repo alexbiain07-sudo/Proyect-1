@@ -1,7 +1,7 @@
 "use client";
 
 import { useGameStore } from "@/lib/game-store";
-import { companies } from "@/lib/game-data";
+import { locations } from "@/lib/locations";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, Loader2, Unlock, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,145 +17,211 @@ function getCookie(name: string) {
 }
 
 interface FormData {
-  nombre: string;
-  email: string;
   telefono: string;
+  province: string;
+  city: string;
+  interest: "plan_ahorro" | "convencional" | "solo_jugar" | "";
+  isAdult: boolean;
+  consent: boolean;
 }
 
 export function FormScreen() {
-const { selectedVehicle, currentScore, driverProfile, setScreen, submitForm, formSubmitted, user, selectedCompany } =
-  useGameStore();
-const activeCompany = companies.find((c) => c.id === selectedCompany);
+  const {
+    selectedVehicle,
+    currentScore,
+    driverProfile,
+    setScreen,
+    submitForm,
+    formSubmitted,
+    user,
+    selectedCompany,
+  } = useGameStore();
+
   const [formData, setFormData] = useState<FormData>({
-    nombre: user?.name || "",
-    email: user?.email || "",
     telefono: "",
+    province: "",
+    city: "",
+    interest: "",
+    isAdult: false,
+    consent: false,
   });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<FormData>>({});
 
   const accentColor = selectedVehicle?.accentColor || "#FF7800";
-  useEffect(() => {
-  if (formSubmitted) {
-    const timer = setTimeout(() => {
-      setScreen("game");
-    }, 1000);
 
-    return () => clearTimeout(timer);
-  }
-}, [formSubmitted, setScreen]);
+  useEffect(() => {
+    if (formSubmitted) {
+      const timer = setTimeout(() => {
+        setScreen("game");
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [formSubmitted, setScreen]);
+
   const validateForm = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!formData.nombre.trim()) newErrors.nombre = "Ingresa tu nombre";
-    if (!formData.email.trim()) {
-      newErrors.email = "Ingresa tu email";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Ingresa un email valido";
+
+    if (!formData.isAdult) {
+      newErrors.isAdult = "Debes confirmar que eres mayor de 18 años";
     }
-    if (!formData.telefono.trim()) newErrors.telefono = "Ingresa tu telefono";
+
+    if (!formData.province) {
+      newErrors.province = "Selecciona tu provincia";
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = "Ingresa tu localidad o ciudad";
+    }
+
+    if (!formData.telefono.trim()) {
+      newErrors.telefono = "Ingresa tu WhatsApp";
+    } else if (!/^\+?[0-9\s-]{8,20}$/.test(formData.telefono)) {
+      newErrors.telefono = "Ingresa un numero de WhatsApp valido";
+    }
+
+    if (!formData.interest) {
+      newErrors.interest = "Selecciona una opcion";
+    }
+
+    if (!formData.consent) {
+      newErrors.consent = "Debes aceptar el uso de tus datos";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  const ref_share_id = getCookie("meucci_ref");
-  const ref_channel = getCookie("meucci_ref_channel");
-    
-  e.preventDefault();
-  if (!validateForm()) return;
-  setIsSubmitting(true);
+    e.preventDefault();
 
-  try {
-    // recuperar la sesión creada en WelcomeScreen
-    let session_id = localStorage.getItem("game_session_id") || "";
-    let session_started_at = localStorage.getItem("game_session_started_at") || "";
+    const ref_share_id = getCookie("meucci_ref");
+    const ref_channel = getCookie("meucci_ref_channel");
 
-    // Fallback de seguridad (por si algo raro pasa)
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      let session_id = localStorage.getItem("game_session_id") || "";
+      let session_started_at = localStorage.getItem("game_session_started_at") || "";
+
       if (!session_id) {
         session_id = crypto.randomUUID();
         session_started_at = new Date().toISOString();
         localStorage.setItem("game_session_id", session_id);
         localStorage.setItem("game_session_started_at", session_started_at);
-}
+      }
 
-    const res = await fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-      session_id,
-      session_started_at,
-      company: selectedCompany,
-  
-  ref_share_id: ref_share_id ?? "",
-  ref_channel: ref_channel ?? "",
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id,
+          session_started_at,
+          company: selectedCompany,
 
-  ...formData,
-  googleId: user?.id || "",
-  avatar: user?.avatar || "",
-  vehiculoInteres: selectedVehicle?.name || "",
-  vehiculoId: selectedVehicle?.id || "",
-  puntajeJuego: currentScore,
-  nivelConductor: driverProfile?.title || "",
-}),
-    });
-  if (!res.ok) throw new Error("Lead submission failed");
-  } catch {
-    // Silently handle - form still transitions to success
-  }
+          ref_share_id: ref_share_id ?? "",
+          ref_channel: ref_channel ?? "",
 
-  submitForm();
+          telefono: formData.telefono,
+          province: formData.province,
+          city: formData.city,
+          interest: formData.interest,
+          isAdult: formData.isAdult,
+          consent: formData.consent,
 
-  localStorage.removeItem("game_session_id");
-  localStorage.removeItem("game_session_started_at");
+          nombre: user?.name || "",
+          email: user?.email || "",
+          googleId: user?.id || "",
+          avatar: user?.avatar || "",
+          vehiculoInteres: selectedVehicle?.name || "",
+          vehiculoId: selectedVehicle?.id || "",
+          puntajeJuego: currentScore,
+          nivelConductor: driverProfile?.title || "",
+        }),
+      });
 
-  setIsSubmitting(false);
-};
+      if (!res.ok) {
+        throw new Error("Lead submission failed");
+      }
+    } catch {
+      // Silently handle - form still transitions to success
+    }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    submitForm();
+
+    localStorage.removeItem("game_session_id");
+    localStorage.removeItem("game_session_started_at");
+
+    setIsSubmitting(false);
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (errors[name as keyof FormData]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+
+    setFormData((prev) => ({ ...prev, [name]: checked }));
+
     if (errors[name as keyof FormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
 
   if (formSubmitted) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col items-center justify-center px-6 py-8"
-      style={{
-        background: "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
-      }}
-    >
+    return (
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="text-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen flex flex-col items-center justify-center px-6 py-8"
+        style={{
+          background:
+            "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
+        }}
       >
-        <div
-          className="w-20 h-20 rounded-full flex items-center justify-center mb-5 mx-auto"
-          style={{
-            background: `linear-gradient(135deg, ${accentColor}20, ${accentColor}05)`,
-            border: `2px solid ${accentColor}30`,
-          }}
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="text-center"
         >
-          <CheckCircle2 className="w-10 h-10" style={{ color: accentColor }} />
-        </div>
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center mb-5 mx-auto"
+            style={{
+              background: `linear-gradient(135deg, ${accentColor}20, ${accentColor}05)`,
+              border: `2px solid ${accentColor}30`,
+            }}
+          >
+            <CheckCircle2 className="w-10 h-10" style={{ color: accentColor }} />
+          </div>
 
-        <h2 className="font-bebas text-3xl tracking-[0.15em] mb-2" style={{ color: "#ece6e1" }}>
-          +3 VIDAS DESBLOQUEADAS
-        </h2>
+          <h2
+            className="font-bebas text-3xl tracking-[0.15em] mb-2"
+            style={{ color: "#ece6e1" }}
+          >
+            +3 VIDAS DESBLOQUEADAS
+          </h2>
 
-        <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-          Volviendo al juego...
-        </p>
+          <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+            Volviendo al juego...
+          </p>
+        </motion.div>
       </motion.div>
-    </motion.div>
-  );
-}
+    );
+  }
 
   return (
     <motion.div
@@ -164,19 +230,20 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
       exit={{ opacity: 0 }}
       className="min-h-screen flex flex-col px-6 py-8 relative overflow-hidden"
       style={{
-        background: "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
+        background:
+          "linear-gradient(170deg, #080808 0%, #0e0e0e 35%, #140a0a 60%, #0a0a0a 100%)",
       }}
     >
-      {/* Background glow */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full"
-        style={{ background: `radial-gradient(circle, ${accentColor}08 0%, transparent 60%)` }}
+        style={{
+          background: `radial-gradient(circle, ${accentColor}08 0%, transparent 60%)`,
+        }}
       />
 
-      {/* Back button */}
       <div className="relative z-10 flex items-center mb-6">
         <button
-          onClick={() => setScreen("gameover")}
+          onClick={() => setScreen("unlock")}
           className="p-2 rounded-full transition-colors touch-manipulation"
           style={{
             background: "rgba(255,255,255,0.04)",
@@ -189,7 +256,6 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
         </button>
       </div>
 
-      {/* Header - reward framing */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -207,15 +273,21 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
         >
           <Unlock className="w-3.5 h-3.5" style={{ color: accentColor }} />
           <span className="text-xs tracking-[0.15em]" style={{ color: accentColor }}>
-            NIVEL DESBLOQUEADO
+            +3 VIDAS EXTRA
           </span>
         </motion.div>
 
-        <h1 className="font-bebas text-3xl tracking-[0.1em] mb-1" style={{ color: "#ece6e1" }}>
-          {"RECIBE TU PROPUESTA"}
+        <h1
+          className="font-bebas text-3xl tracking-[0.1em] mb-1"
+          style={{ color: "#ece6e1" }}
+        >
+          DESBLOQUEA 3 VIDAS
         </h1>
-        <h2 className="font-bebas text-3xl tracking-[0.1em]" style={{ color: accentColor }}>
-          EXCLUSIVA
+        <h2
+          className="font-bebas text-3xl tracking-[0.1em]"
+          style={{ color: accentColor }}
+        >
+          Y SEGUI COMPITIENDO
         </h2>
 
         {selectedVehicle && (
@@ -228,16 +300,14 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
                 className="object-contain"
               />
             </div>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
-              Configuracion del{" "}
-              <span style={{ color: accentColor }}>{selectedVehicle.name}</span> segun tu perfil{" "}
+            <p className="text-xs max-w-[220px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Activa 3 vidas mas y segui acumulando puntaje con tu perfil{" "}
               <span style={{ color: accentColor }}>{driverProfile?.title}</span>
             </p>
           </div>
         )}
       </motion.div>
 
-      {/* Form */}
       <motion.form
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -246,42 +316,191 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
         className="relative z-10 flex-1 flex flex-col"
       >
         <div className="space-y-4 flex-1">
-          {[
-            { id: "nombre", label: "Nombre", type: "text", placeholder: "Tu nombre" },
-            { id: "email", label: "Email", type: "email", placeholder: "tu@email.com" },
-            { id: "telefono", label: "WhatsApp", type: "tel", placeholder: "+54 11 1234-5678" },
-          ].map((field) => (
-            <div key={field.id}>
-              <label htmlFor={field.id} className="block text-xs font-medium mb-2 tracking-wider uppercase" style={{ color: "rgba(255,255,255,0.5)" }}>
-                {field.label}
-              </label>
+          <div>
+            <label
+              className="flex items-start gap-3 text-sm"
+              style={{ color: "#ece6e1" }}
+            >
               <input
-                type={field.type}
-                id={field.id}
-                name={field.id}
-                value={formData[field.id as keyof FormData]}
-                onChange={handleInputChange}
-                placeholder={field.placeholder}
-                className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none text-sm"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: `1px solid ${
-                    errors[field.id as keyof FormData]
-                      ? "#E63946"
-                      : formData[field.id as keyof FormData]
-                      ? `${accentColor}40`
-                      : "rgba(255,255,255,0.08)"
-                  }`,
-                  color: "#ece6e1",
-                }}
+                type="checkbox"
+                name="isAdult"
+                checked={formData.isAdult}
+                onChange={handleCheckboxChange}
+                className="mt-1"
               />
-              {errors[field.id as keyof FormData] && (
-                <p className="text-xs mt-1" style={{ color: "#E63946" }}>
-                  {errors[field.id as keyof FormData]}
-                </p>
-              )}
-            </div>
-          ))}
+              <span>Soy mayor de 18 años</span>
+            </label>
+            {errors.isAdult && (
+              <p className="text-xs mt-1" style={{ color: "#E63946" }}>
+                {errors.isAdult}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              className="block text-xs font-medium mb-2 tracking-wider uppercase"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              Provincia
+            </label>
+            <select
+              name="province"
+              value={formData.province}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none text-sm"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${
+                  errors.province
+                    ? "#E63946"
+                    : formData.province
+                    ? `${accentColor}40`
+                    : "rgba(255,255,255,0.08)"
+                }`,
+                color: "#ece6e1",
+              }}
+            >
+              <option value="">Seleccionar provincia</option>
+              {Object.keys(locations).map((prov) => (
+                <option key={prov} value={prov}>
+                  {prov}
+                </option>
+              ))}
+            </select>
+            {errors.province && (
+              <p className="text-xs mt-1" style={{ color: "#E63946" }}>
+                {errors.province}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              className="block text-xs font-medium mb-2 tracking-wider uppercase"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              Localidad / Ciudad
+            </label>
+            <input
+              type="text"
+              name="city"
+              value={formData.city}
+              onChange={handleInputChange}
+              placeholder="Tu ciudad o localidad"
+              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none text-sm"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${
+                  errors.city
+                    ? "#E63946"
+                    : formData.city
+                    ? `${accentColor}40`
+                    : "rgba(255,255,255,0.08)"
+                }`,
+                color: "#ece6e1",
+              }}
+            />
+            {errors.city && (
+              <p className="text-xs mt-1" style={{ color: "#E63946" }}>
+                {errors.city}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              className="block text-xs font-medium mb-2 tracking-wider uppercase"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              WhatsApp de contacto
+            </label>
+            <input
+              type="tel"
+              name="telefono"
+              value={formData.telefono}
+              onChange={handleInputChange}
+              placeholder="+54 3794 123456"
+              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none text-sm"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${
+                  errors.telefono
+                    ? "#E63946"
+                    : formData.telefono
+                    ? `${accentColor}40`
+                    : "rgba(255,255,255,0.08)"
+                }`,
+                color: "#ece6e1",
+              }}
+            />
+            {errors.telefono && (
+              <p className="text-xs mt-1" style={{ color: "#E63946" }}>
+                {errors.telefono}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              className="block text-xs font-medium mb-2 tracking-wider uppercase"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              ¿Que te interesa?
+            </label>
+            <select
+              name="interest"
+              value={formData.interest}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none text-sm"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${
+                  errors.interest
+                    ? "#E63946"
+                    : formData.interest
+                    ? `${accentColor}40`
+                    : "rgba(255,255,255,0.08)"
+                }`,
+                color: "#ece6e1",
+              }}
+            >
+              <option value="">Seleccionar opcion</option>
+              <option value="plan_ahorro">Plan de ahorro</option>
+              <option value="convencional">Compra convencional</option>
+              <option value="solo_jugar">Solo quiero seguir jugando</option>
+            </select>
+            {errors.interest && (
+              <p className="text-xs mt-1" style={{ color: "#E63946" }}>
+                {errors.interest}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              className="flex items-start gap-3 text-sm leading-relaxed"
+              style={{ color: "#ece6e1" }}
+            >
+              <input
+                type="checkbox"
+                name="consent"
+                checked={formData.consent}
+                onChange={handleCheckboxChange}
+                className="mt-1"
+              />
+              <span>
+                Acepto que Grupo Meucci utilice mis datos para contactarme sobre mi
+                interes comercial, administrar mi participacion en esta experiencia y
+                mejorar la campaña.
+              </span>
+            </label>
+            {errors.consent && (
+              <p className="text-xs mt-1" style={{ color: "#E63946" }}>
+                {errors.consent}
+              </p>
+            )}
+          </div>
         </div>
 
         <motion.div
@@ -308,16 +527,30 @@ const activeCompany = companies.find((c) => c.id === selectedCompany);
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>DESBLOQUEAR PROPUESTA</span>
+                <span>DESBLOQUEAR 3 VIDAS</span>
               </>
             )}
           </button>
 
-          <p className="text-center text-[9px] tracking-wider mt-4" style={{ color: "rgba(255,255,255,0.2)" }}>
-            Un asesor de {activeCompany?.name || "Grupo Meucci"} te contactara con tu propuesta personalizada
+          <p
+            className="text-center text-[11px] mt-4"
+            style={{ color: "rgba(255,255,255,0.45)" }}
+          >
+            Desbloquea 3 vidas extra y sigue sumando puntos con tu mismo puntaje.
           </p>
+
+          <p
+            className="text-center text-[10px] tracking-wider mt-3"
+            style={{ color: "rgba(255,255,255,0.28)" }}
+          >
+            Mas de 1.200 jugadores ya desbloquearon sus vidas extra.
+          </p>
+
           <div className="flex flex-col items-center gap-1.5 mt-5">
-            <span className="text-[8px] tracking-[0.3em] uppercase font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+            <span
+              className="text-[8px] tracking-[0.3em] uppercase font-medium"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
               Una empresa del
             </span>
             <GrupoMeucciLogo size="sm" style={{ opacity: 0.75 }} />
